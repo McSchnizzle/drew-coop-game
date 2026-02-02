@@ -15,7 +15,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 |--------|----------|
 | **Perspective** | 2D side-scrolling (Contra/Metal Slug style) |
 | **Players** | 2 |
-| **Enemy types** | 1 (with one behavior requiring player response) |
+| **Enemy type** | Merge Conflict — splits into smaller enemies when killed wrong; requires specific attack to kill cleanly |
 | **Objective** | Survival — waves of enemies, survive for X time or Y waves |
 | **Combat** | Move + shoot (one weapon type), one active ability (same for both players) |
 | **Super ability** | "Clear Context" — AOE that wipes out a large group of enemies, has cooldown |
@@ -108,13 +108,22 @@ Two roles designed for 2-player core experience:
 
 ## 6. Enemy Design: Failure Weapons
 
+### Phase 1 Enemy
+| Enemy Type | Mechanic |
+|------------|----------|
+| **Merge Conflict** | Splits into 2 smaller enemies when killed with normal attack; requires "clean kill" (specific attack/ability) to destroy without splitting |
+
+*Why this one first:* Clear cause-and-effect, easy to debug, classic side-scroller mechanic.
+
+### Phase 2+ Enemies
 | Enemy Type | Mechanic |
 |------------|----------|
 | **Context Rot** | Enemy projectiles scramble HUD/map; players must "re-anchor" at terminals |
 | **Hallucination** | Fake doors, fake pickups, fake boss tells |
-| **Merge Conflicts** | Enemies that split or combine unpredictably |
 | **Dependency Hell** | Enemy auras that force loadout changes or disable certain weapon/ability types |
 | **Unfinished Code** | Partial enemies that split into bugs unless "completed" (finish objective) |
+
+*Note:* Context Rot deferred to Phase 2+ because HUD scrambling makes debugging difficult during early development.
 
 **Excluded:**
 - ~~Tech Debt / Lazy Shortcut~~
