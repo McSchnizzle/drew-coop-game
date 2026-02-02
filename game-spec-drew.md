@@ -13,6 +13,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 
 | Aspect | Decision |
 |--------|----------|
+| **Perspective** | 2D side-scrolling (Contra/Metal Slug style) |
 | **Players** | 2 |
 | **Enemy types** | 1 (with one behavior requiring player response) |
 | **Objective** | Survival — waves of enemies, survive for X time or Y waves |
@@ -21,23 +22,30 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Death** | Simple respawn or game over |
 | **Networking** | Host/join via code/IP, basic replication working |
 | **Art style** | 16-bit (SNES/Genesis era) |
+| **Input** | Keyboard |
 
 ### Phase 2: Prove It's Fun
-Add variety, roles, tuning, and first boss. Goal: Something worth showing to outside playtesters.
+Shift to top-down perspective, add variety, roles, tuning, and first boss. Goal: Something worth showing to outside playtesters.
 
-- Both roles functional (Striker + Engineer) with distinct abilities
-- Multiple enemy types with varied behaviors
-- First boss encounter
-- Tuning pass on combat feel and difficulty
+| Aspect | Decision |
+|--------|----------|
+| **Perspective** | 2D top-down with twin-stick controls |
+| **Roles** | Both roles functional (Striker + Engineer) with distinct abilities |
+| **Enemies** | Multiple enemy types with varied behaviors |
+| **Boss** | First boss encounter |
+| **Input** | Keyboard + Xbox controller support |
+| **Polish** | Tuning pass on combat feel and difficulty |
 
 ### Phase 3: Prove It's Complete
-Campaign/roguelite structure, content, and polish. Goal: Something releasable.
+Full 3D, campaign/roguelite structure, content, and polish. Goal: Something releasable.
 
-- Campaign mode with story progression
-- Roguelite mode with permanent unlocks
-- Multiple bosses and levels
-- Full progression systems
-- Polish, juice, and accessibility options
+| Aspect | Decision |
+|--------|----------|
+| **Perspective** | Full 3D (first-person vs third-person TBD) |
+| **Modes** | Campaign mode with story progression + Roguelite mode with permanent unlocks |
+| **Content** | Multiple bosses and levels |
+| **Systems** | Full progression systems |
+| **Polish** | Juice, accessibility options, full art pass |
 
 ---
 
@@ -45,12 +53,13 @@ Campaign/roguelite structure, content, and polish. Goal: Something releasable.
 
 | Aspect | Decision |
 |--------|----------|
-| **Dimension** | 2D (Phase 1) — 3D possible in later phases |
-| **Camera/view** | Top-down or side-scrolling (TBD for Phase 1) |
+| **Perspective progression** | Phase 1: 2D side-scrolling → Phase 2: 2D top-down twin-stick → Phase 3: Full 3D (first/third person TBD) |
+| **Game style** | Campaign-oriented (movement beyond arena, level progression) |
 | **Game modes** | Campaign + Roguelite (Phase 3) |
 | **Core emotion** | Panic + clutch teamwork |
 | **Difficulty** | Challenging/punishing — deaths teach, victories feel earned |
 | **Platforms** | Mac + Windows |
+| **Input** | Keyboard initially; Xbox controller support planned |
 
 ---
 
