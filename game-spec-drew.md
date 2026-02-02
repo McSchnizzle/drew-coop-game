@@ -17,7 +17,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Players** | 2 |
 | **Enemy type** | Merge Conflict — splits into smaller enemies when killed wrong; requires specific attack to kill cleanly |
 | **Objective** | Survival — waves of enemies, survive for X time or Y waves |
-| **Combat** | Move + shoot (one weapon type), one active ability (same for both players) |
+| **Combat** | Move + shoot (normal shot causes Merge Conflicts to split), one active ability = "clean kill" (prevents split, has cooldown) |
 | **Super ability** | "Clear Context" — AOE that wipes out a large group of enemies, has cooldown |
 | **Death** | Simple respawn or game over |
 | **Networking** | Host/join via code/IP, basic replication working |
@@ -111,7 +111,12 @@ Two roles designed for 2-player core experience:
 ### Phase 1 Enemy
 | Enemy Type | Mechanic |
 |------------|----------|
-| **Merge Conflict** | Splits into 2 smaller enemies when killed with normal attack; requires "clean kill" (specific attack/ability) to destroy without splitting |
+| **Merge Conflict** | Splits into 2 smaller enemies when killed with normal shot; "clean kill" with active ability destroys without splitting |
+
+**Phase 1 combat loop:**
+- Normal shot → enemy dies but splits into 2 smaller enemies
+- Active ability → "clean kill," no split, but ability has cooldown
+- Player tension: spend cooldown now or risk being overwhelmed?
 
 *Why this one first:* Clear cause-and-effect, easy to debug, classic side-scroller mechanic.
 
