@@ -229,6 +229,15 @@ Two roles designed for 2-player core experience:
 
 Split into "mergeable lanes" with hard interfaces. Drew has ongoing input into design decisions.
 
+### Pre-requisite: Golden Path
+Before splitting into lanes, build a "walking skeleton" on `main` that proves the full loop:
+- Host/join works
+- Both players visible and moving
+- Basic shooting works
+- One enemy spawns and dies
+
+See `/docs/GOLDEN_PATH.md` for acceptance criteria. Lanes branch from this working base.
+
 ### Phase 1 Lanes (MVP scope)
 
 **Lane A — Networking Foundation**
