@@ -17,7 +17,8 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Players** | 2 |
 | **Enemy type** | Merge Conflict — splits into smaller enemies when killed wrong; requires specific attack to kill cleanly |
 | **Objective** | Survival — waves of enemies, survive for X time or Y waves |
-| **Combat** | Move + shoot (normal shot causes Merge Conflicts to split), one active ability = "clean kill" (prevents split, has cooldown) |
+| **Combat** | Move + shoot (normal shot causes Merge Conflicts to split) |
+| **Active ability** | "Git Revert" — short-range beam that dissolves enemies cleanly (no split), has cooldown |
 | **Super ability** | "Clear Context" — AOE that wipes out a large group of enemies, has cooldown |
 | **Death** | Simple respawn or game over |
 | **Networking** | Host/join via code/IP, basic replication working |
@@ -115,8 +116,9 @@ Two roles designed for 2-player core experience:
 
 **Phase 1 combat loop:**
 - Normal shot → enemy dies but splits into 2 smaller enemies
-- Active ability → "clean kill," no split, but ability has cooldown
-- Player tension: spend cooldown now or risk being overwhelmed?
+- "Git Revert" beam (active ability) → clean kill, enemy dissolves into code fragments, no split
+- Risk/reward: Git Revert is short-range (must get close) and has cooldown
+- Player tension: spend cooldown and risk getting close, or stay safe and deal with splits?
 
 *Why this one first:* Clear cause-and-effect, easy to debug, classic side-scroller mechanic.
 
