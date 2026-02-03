@@ -75,7 +75,7 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 | **Art style (Phase 1)** | 16-bit pixel art (SNES/Genesis era) — prioritize readability and fast iteration |
 | **Art style (Later)** | TBD — may evolve based on Phase 1 feedback |
 | **Readability rule** | Enemies must be readable at a glance (co-op chaos needs clarity) |
-| **Graphics approach** | Need to identify good asset sources or generation methods (neither dev is a graphic designer) |
+| **Graphics approach** | AI-generated sprites (Nano Banana Pro, GPT Imagen 1.5) with manual cleanup; prompts to be developed for consistent 16-bit style |
 
 ---
 
@@ -219,11 +219,12 @@ Split into "mergeable lanes" with hard interfaces. Drew has ongoing input into d
 - One enemy type with one behavior
 - Damage/death/respawn system
 
-**Lane C — Art + Assets (TBD)**
+**Lane C — Art + Assets**
 - 16-bit style sprites for players, enemies, projectiles
-- Simple arena/level tileset
+- Simple level tileset (side-scrolling platform/arena)
 - Basic UI elements (health, cooldowns, wave counter)
-- Approach TBD: asset packs, AI generation, or commissioned
+- Approach: AI-generated (Nano Banana Pro, GPT Imagen 1.5) with manual cleanup
+- Asset list needed: player character, Merge Conflict enemy (+ split variants), projectiles, Git Revert beam, Clear Context effect, tiles, UI
 
 ### Phase 2+ Lanes (Full Vision)
 
