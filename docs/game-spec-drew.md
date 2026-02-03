@@ -21,7 +21,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Active ability** | "Git Revert" — short-range beam that dissolves enemies cleanly (no split), has cooldown |
 | **Super ability** | "Clear Context" — zone clear AOE around player; solo = partial effect, both players activate together = full "garbage collection" wipe; long cooldown |
 | **Death** | Simple respawn or game over |
-| **Networking** | Host/join via code/IP, basic replication working |
+| **Networking** | Host is authority — Player 1 hosts and runs game logic, Player 2 sends inputs, host sends state |
 | **Level structure** | Scrolling level with boundaries — camera follows players, enemies spawn from sides/ahead |
 | **Art style** | 16-bit (SNES/Genesis era) |
 | **Input** | Keyboard |
@@ -32,6 +32,7 @@ Shift to top-down perspective, add variety, roles, tuning, and first boss. Goal:
 | Aspect | Decision |
 |--------|----------|
 | **Perspective** | 2D top-down with twin-stick controls |
+| **Networking** | Host authority + host migration (if host disconnects, another player becomes host) |
 | **Roles** | Both roles functional (Striker + Engineer) with distinct abilities |
 | **Enemies** | Multiple enemy types with varied behaviors |
 | **Boss** | First boss encounter |
@@ -44,6 +45,7 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 | Aspect | Decision |
 |--------|----------|
 | **Perspective** | Full 3D (first-person vs third-person TBD) |
+| **Networking** | Peer-to-peer with reconciliation (each player runs simulation, sync differences) |
 | **Modes** | Campaign mode with story progression + Roguelite mode with permanent unlocks |
 | **Content** | Multiple bosses and levels |
 | **Systems** | Full progression systems |
