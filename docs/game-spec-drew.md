@@ -200,7 +200,28 @@ Two roles designed for 2-player core experience:
 - **Heroic Labs Nakama** for accounts, matchmaking, persistence (skip for v1)
 
 ### Repo Structure
-- Mono-repo, strict folders: `/game`, `/server (optional)`, `/docs`, `/tools`
+```
+/
+├── game/
+│   ├── interfaces/           # Shared code contracts (sacred, coordinate changes)
+│   ├── lane_a_networking/    # Lane A owns this folder
+│   ├── lane_b_combat/        # Lane B owns this folder
+│   ├── lane_c_art/           # Lane C owns this folder
+│   └── main/                 # Integration point
+├── server/                   # Dedicated server (Phase 2+ if needed)
+├── docs/
+│   ├── interfaces/           # Contract docs (game_events.md, entity_schema.md)
+│   ├── agent_prompts/        # Copy these when starting agent sessions
+│   └── CHECKPOINT_PROCESS.md # How to merge and integrate
+└── tools/                    # Build scripts, asset pipeline
+```
+
+### Branch Strategy
+- `main` — stable, integrated code only
+- `lane-a/networking` — Lane A work
+- `lane-b/combat` — Lane B work
+- `lane-c/art` — Lane C work
+- `integration/checkpoint-*` — temporary merge branches
 
 ---
 
@@ -254,9 +275,11 @@ Split into "mergeable lanes" with hard interfaces. Drew has ongoing input into d
 - Accessibility options
 
 ### Integration Contract (non-negotiable)
-- A shared `GameEvents` spec: event names + payloads
-- A shared `EntitySchema`: fields replicated over network
-- A shared "Definition of Done" checklist per feature (host can run a scripted demo)
+- **Event contract:** `/docs/interfaces/game_events.md` — all events, payloads, emitters, listeners
+- **Entity contract:** `/docs/interfaces/entity_schema.md` — all entity fields, types, sync behavior
+- **Checkpoint process:** `/docs/CHECKPOINT_PROCESS.md` — how to merge lanes and handle interface changes
+- **Agent prompts:** `/docs/agent_prompts/` — copy these when starting agent sessions
+- **Lane status:** Each lane updates `LANE_STATUS.md` at end of session
 
 ---
 
