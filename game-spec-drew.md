@@ -16,7 +16,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Perspective** | 2D side-scrolling (Contra/Metal Slug style) |
 | **Players** | 2 |
 | **Enemy type** | Merge Conflict — splits into smaller enemies when killed wrong; requires specific attack to kill cleanly |
-| **Objective** | Survival — waves of enemies, survive for X time or Y waves |
+| **Objective** | Survival — survive all waves (e.g., 10 waves), each wave spawns more/faster enemies |
 | **Combat** | Move + shoot (normal shot causes Merge Conflicts to split) |
 | **Active ability** | "Git Revert" — short-range beam that dissolves enemies cleanly (no split), has cooldown |
 | **Super ability** | "Clear Context" — zone clear AOE around player; solo = partial effect, both players activate together = full "garbage collection" wipe; long cooldown |
@@ -81,11 +81,13 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 
 ## 4. Core Gameplay Loop
 
-### Phase 1 Loop (Survival)
+### Phase 1 Loop (Wave Survival)
 1. Players join a session (host/join via code)
-2. Waves of enemies spawn
-3. Players survive using weapons, abilities, and "Clear Context" super
-4. Win condition: survive X waves or Y time
+2. Wave starts — Merge Conflict enemies spawn
+3. Players clear the wave using normal shots, Git Revert, and Clear Context
+4. Brief pause between waves, then next wave (more/faster enemies)
+5. Win condition: survive all waves (e.g., 10 waves)
+6. Lose condition: both players dead at same time
 
 ### Full Vision Loop (Phase 2+)
 1. Players enter a "facility" (data center / repo labyrinth / prompt-temple)
