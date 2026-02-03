@@ -22,6 +22,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Super ability** | "Clear Context" — zone clear AOE around player; solo = partial effect, both players activate together = full "garbage collection" wipe; long cooldown |
 | **Death** | Simple respawn or game over |
 | **Networking** | Host/join via code/IP, basic replication working |
+| **Level structure** | Scrolling level with boundaries — camera follows players, enemies spawn from sides/ahead |
 | **Art style** | 16-bit (SNES/Genesis era) |
 | **Input** | Keyboard |
 
@@ -261,6 +262,37 @@ Split into "mergeable lanes" with hard interfaces. Drew has ongoing input into d
 
 - **Favorite co-op games:** Fortnite, Minecraft
 - **What he enjoys:** Combat/survival tension primarily, building/creating secondarily
+
+---
+
+## 13. Open Questions for Drew
+
+These decisions were intentionally left open for Drew's input:
+
+### Gameplay Feel
+- **Player character design:** What should the player look like? Human? Robot? Abstract code entity?
+- **Movement feel:** Floaty jumps (Mega Man) vs snappy/heavy (Contra)? How fast should running feel?
+- **Sound design direction:** Retro chiptune? Modern with retro flavor? What vibe?
+
+### Difficulty & Tuning
+- **Wave count:** Is 10 waves the right number? More? Fewer?
+- **Enemy speed/aggression:** How punishing should Merge Conflicts be?
+- **Cooldown timing:** How long between Git Revert uses? Clear Context uses?
+
+### Visual Style
+- **Color palette:** Dark/neon (cyberpunk)? Bright/colorful (arcade)? Something else?
+- **Environment theme:** What does the "facility" look like? Server room? Abstract code space? Office building gone wrong?
+- **Death/respawn visuals:** What happens when you die? Pixelated explosion? Glitch effect?
+
+### Lore & Personality
+- **4th wall break style:** How should the game talk to players? Snarky? Deadpan? Encouraging?
+- **Enemy personality:** Are Merge Conflicts menacing? Annoying? Tragic?
+- **Victory/defeat messages:** What does the game say when you win or lose?
+
+### Future Ideas (Phase 2+)
+- **Which enemy type next:** Context Rot? Hallucination? Dependency Hell?
+- **Role preference:** Does Drew want to play Striker or Engineer?
+- **Boss concepts:** Any ideas for what the first boss should be?
 
 ---
 
