@@ -19,7 +19,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Objective** | Survival — waves of enemies, survive for X time or Y waves |
 | **Combat** | Move + shoot (normal shot causes Merge Conflicts to split) |
 | **Active ability** | "Git Revert" — short-range beam that dissolves enemies cleanly (no split), has cooldown |
-| **Super ability** | "Clear Context" — AOE that wipes out a large group of enemies, has cooldown |
+| **Super ability** | "Clear Context" — zone clear AOE around player; solo = partial effect, both players activate together = full "garbage collection" wipe; long cooldown |
 | **Death** | Simple respawn or game over |
 | **Networking** | Host/join via code/IP, basic replication working |
 | **Art style** | 16-bit (SNES/Genesis era) |
@@ -105,6 +105,9 @@ Two roles designed for 2-player core experience:
 | **Striker** | Damage abilities, reveals enemy weak points, counters hallucinations (combines Promptsmith + Debugger) |
 | **Engineer** | Builds defenses/turrets, heals teammates, manages cooldowns (combines Architect + Ops) |
 
+**Saved for role specialization:**
+- Chain reaction Git Revert (triggers clean kills in sequence, enemies dissolve one after another) — potential Striker signature ability
+
 ---
 
 ## 6. Enemy Design: Failure Weapons
@@ -119,6 +122,10 @@ Two roles designed for 2-player core experience:
 - "Git Revert" beam (active ability) → clean kill, enemy dissolves into code fragments, no split
 - Risk/reward: Git Revert is short-range (must get close) and has cooldown
 - Player tension: spend cooldown and risk getting close, or stay safe and deal with splits?
+- "Clear Context" super (long cooldown) → zone AOE wipes nearby enemies
+  - Solo activation = partial effect
+  - Both players activate together = full "garbage collection" wipe
+  - Co-op tension: coordinate timing for maximum impact
 
 *Why this one first:* Clear cause-and-effect, easy to debug, classic side-scroller mechanic.
 
