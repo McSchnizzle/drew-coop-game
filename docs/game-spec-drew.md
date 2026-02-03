@@ -299,29 +299,53 @@ See `/docs/GOLDEN_PATH.md` for acceptance criteria. Lanes branch from this worki
 
 ---
 
-## 13. Open Questions for Drew
+## 13. Drew's Decisions
 
-These decisions were intentionally left open for Drew's input:
+*(This section will be filled in during Drew's first session)*
 
-### Gameplay Feel
-- **Player character design:** What should the player look like? Human? Robot? Abstract code entity?
-- **Movement feel:** Floaty jumps (Mega Man) vs snappy/heavy (Contra)? How fast should running feel?
-- **Sound design direction:** Retro chiptune? Modern with retro flavor? What vibe?
+| Decision | Drew's Choice | Date |
+|----------|---------------|------|
+| Movement feel | TBD | |
+| Player speed | TBD | |
+| Jump style | TBD | |
+| Shooting style | TBD | |
+| Placeholder colors | TBD | |
+| Test wave count | TBD | |
+| Priority feel | TBD | |
 
-### Difficulty & Tuning
-- **Wave count:** Is 10 waves the right number? More? Fewer?
-- **Enemy speed/aggression:** How punishing should Merge Conflicts be?
-- **Cooldown timing:** How long between Git Revert uses? Clear Context uses?
+---
 
-### Visual Style
-- **Color palette:** Dark/neon (cyberpunk)? Bright/colorful (arcade)? Something else?
-- **Environment theme:** What does the "facility" look like? Server room? Abstract code space? Office building gone wrong?
-- **Death/respawn visuals:** What happens when you die? Pixelated explosion? Glitch effect?
+## 14. Open Questions for Drew
 
-### Lore & Personality
-- **4th wall break style:** How should the game talk to players? Snarky? Deadpan? Encouraging?
-- **Enemy personality:** Are Merge Conflicts menacing? Annoying? Tragic?
-- **Victory/defeat messages:** What does the game say when you win or lose?
+> **Drew's First Session:** Use `/docs/agent_prompts/DREW_FIRST_SESSION.md` — this prompt will ask Drew these questions, record his answers, and then build the golden path.
+
+These decisions are intentionally left open for Drew's input:
+
+### Gameplay Feel (Asked in First Session)
+- **Movement feel:** Floaty jumps (Mega Man) vs snappy/heavy (Contra)? → *First session Q1*
+- **Player speed:** Fast/medium/slow running? → *First session Q2*
+- **Jump style:** Single, double, or variable height? → *First session Q4*
+- **Shooting style:** Tap, hold, or both? → *First session Q5*
+
+### Difficulty & Tuning (Partially in First Session)
+- **Wave count:** How many waves for first test? → *First session Q6*
+- **Enemy speed/aggression:** How punishing should Merge Conflicts be? → *After first playtest*
+- **Cooldown timing:** How long between Git Revert uses? Clear Context uses? → *After first playtest*
+
+### Visual Style (Partially in First Session)
+- **Placeholder colors:** What colors for players, enemies, projectiles? → *First session Q3*
+- **Player character design:** What should the player look like? Human? Robot? Abstract code entity? → *Phase 1 art pass*
+- **Color palette:** Dark/neon (cyberpunk)? Bright/colorful (arcade)? → *Phase 1 art pass*
+- **Environment theme:** Server room? Abstract code space? Office building gone wrong? → *Phase 1 art pass*
+- **Death/respawn visuals:** Pixelated explosion? Glitch effect? → *Phase 1 art pass*
+
+### Sound Design (Later)
+- **Sound direction:** Retro chiptune? Modern with retro flavor? → *After golden path*
+
+### Lore & Personality (Later)
+- **4th wall break style:** Snarky? Deadpan? Encouraging? → *Phase 2+*
+- **Enemy personality:** Are Merge Conflicts menacing? Annoying? Tragic? → *Phase 2+*
+- **Victory/defeat messages:** What does the game say when you win or lose? → *Phase 2+*
 
 ### Future Ideas (Phase 2+)
 - **Which enemy type next:** Context Rot? Hallucination? Dependency Hell?
