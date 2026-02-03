@@ -6,11 +6,30 @@ Co-op Agent-Bot Shooter — 2-4 players vs software failures made physical.
 
 ```
 /
-├── game/       # Godot 4 project
-├── server/     # Dedicated server (Phase 2+ if needed)
-├── docs/       # Design specs, documentation
-└── tools/      # Build scripts, asset pipeline
+├── game/
+│   ├── interfaces/           # Shared code contracts
+│   ├── lane_a_networking/    # Lane A: networking code
+│   ├── lane_b_combat/        # Lane B: combat code
+│   ├── lane_c_art/           # Lane C: art assets
+│   └── main/                 # Integration point
+├── server/                   # Dedicated server (Phase 2+)
+├── docs/
+│   ├── interfaces/           # Event + entity contracts
+│   ├── agent_prompts/        # Prompts for AI agent sessions
+│   └── CHECKPOINT_PROCESS.md # Integration process
+└── tools/                    # Build scripts, asset pipeline
 ```
+
+## Parallel Development
+
+This project uses lane-based parallel development with AI coding agents.
+
+- **Lane A:** Networking (lobby, replication, sync)
+- **Lane B:** Combat (movement, abilities, enemies, waves)
+- **Lane C:** Art + Assets (sprites, UI, effects)
+
+See `docs/agent_prompts/` for lane-specific agent prompts.
+See `docs/CHECKPOINT_PROCESS.md` for integration workflow.
 
 ## Phase 1 Scope
 
