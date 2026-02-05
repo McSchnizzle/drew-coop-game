@@ -275,12 +275,43 @@ Use `MultiplayerSpawner` node to automatically replicate spawned scenes:
 
 ## Placeholder Art
 
-Use ColorRect nodes with distinct colors:
+Use ColorRect nodes with Drew's chosen colors:
 - Player 1: Blue rectangle (32x64 pixels)
-- Player 2: Green rectangle (32x64 pixels)
+- Player 2: White rectangle (32x64 pixels)
 - Enemy: Red rectangle (48x48 pixels)
 - Projectile: Yellow rectangle (8x8 pixels)
 - Platforms: Gray rectangles
+
+## Drew's Movement Preferences (from first session)
+
+| Setting | Value |
+|---------|-------|
+| Movement feel | Grounded/regular with sprint + jump fatigue |
+| Speed | Between medium and slow |
+| Jump | Single jump only |
+| Shooting | Both (tap + hold for auto-fire) |
+
+### Recommended Physics Values
+```gdscript
+# Player movement
+const RUN_SPEED = 170.0          # Deliberate, not zippy
+const SPRINT_SPEED = 250.0       # With stamina drain
+const SPRINT_STAMINA_MAX = 100.0
+const SPRINT_STAMINA_DRAIN = 30.0  # Per second
+const SPRINT_STAMINA_REGEN = 20.0  # Per second (when not sprinting)
+
+# Jumping
+const JUMP_VELOCITY = -320.0     # Modest single jump
+const GRAVITY = 900.0            # Snappy fall
+const JUMP_FATIGUE_WINDOW = 2.0  # Seconds
+const JUMP_FATIGUE_THRESHOLD = 3 # Jumps before fatigue kicks in
+const JUMP_FATIGUE_PENALTY = 0.15 # 15% reduction per fatigued jump
+
+# Shooting
+const SHOOT_COOLDOWN_TAP = 0.3   # Single shot delay
+const SHOOT_COOLDOWN_AUTO = 0.12 # Auto-fire rate when holding
+const AUTO_FIRE_DELAY = 0.4      # Hold time before auto-fire starts
+```
 
 ---
 

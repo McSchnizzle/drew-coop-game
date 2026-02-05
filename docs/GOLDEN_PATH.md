@@ -3,6 +3,26 @@
 > Build this BEFORE splitting into parallel lanes.
 > This gives all agents a working reference to build on.
 
+## Drew's Preferences (from first session — 2026-02-05)
+
+| Setting | Choice |
+|---------|--------|
+| **Movement** | Regular/grounded with sprint stamina bar; jump fatigue (consecutive jumps get shorter); powerups can unlock floaty mode |
+| **Speed** | Between medium and slow — deliberate, positioning matters |
+| **Jump** | Single jump only |
+| **Shooting** | Both — tap for single shots, hold for rapid fire |
+| **Placeholder colors** | Player 1: Blue, Player 2: White, Enemy: Red, Projectiles: Yellow |
+| **Test waves** | 5 waves |
+| **Priority** | Controls feel good + teamwork required; difficulty tuning comes later |
+
+### Physics Tuning Guidance
+Based on Drew's "between medium and slow" + "grounded" preferences:
+- **Run speed:** ~150-180 pixels/sec (not zippy, deliberate)
+- **Sprint speed:** ~250 pixels/sec (with stamina drain)
+- **Gravity:** ~800-1000 (snappy fall, not floaty)
+- **Jump velocity:** ~-300 to -350 (modest single jump)
+- **Jump fatigue:** After 3+ consecutive jumps within 2 seconds, reduce jump velocity by 15-20% per jump
+
 ## Goal
 
 Prove the full loop works end-to-end with minimal features:
