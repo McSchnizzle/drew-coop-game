@@ -16,8 +16,8 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Perspective** | 2D side-scrolling (Contra/Metal Slug style) |
 | **Players** | 2 |
 | **Enemy type** | Merge Conflict — splits into smaller enemies when killed wrong; requires specific attack to kill cleanly |
-| **Objective** | Survival — survive all waves (e.g., 10 waves), each wave spawns more/faster enemies |
-| **Combat** | Move + shoot (normal shot causes Merge Conflicts to split) |
+| **Objective** | Survival — survive all waves (5 waves for first test), each wave spawns more/faster enemies |
+| **Combat** | Move + shoot + melee attack (normal shot causes Merge Conflicts to split) |
 | **Active ability** | "Git Revert" — short-range beam that dissolves enemies cleanly (no split), has cooldown |
 | **Super ability** | "Clear Context" — zone clear AOE around player; solo = partial effect, both players activate together = full "garbage collection" wipe; long cooldown |
 | **Death** | Simple respawn or game over |
@@ -97,7 +97,17 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 2. Swarms spawn (bots) + hazards appear (hallucinations, context rot)
 3. Players complete objectives to weaken boss shield ("restore state", "pin dependencies", "write tests", etc.)
 4. Boss fight: one named failure mode
-5. Loot/unlocks: new "anti-bug" tools
+5. Between waves: random loot boxes, power upgrade slot machines, weapon draws
+6. Loot/unlocks: new "anti-bug" tools
+
+### Phase 2/3 Features (Drew's additions)
+- **Weapons:** Different weapon pickups, random weapon boxes/machines to draw from
+- **Grenades:** Throwable explosives
+- **Defenses:** Barricades and turrets players can place
+- **Health system:** Replenishable via medics/bandages (found on map or purchasable)
+- **Inventory limit:** Max carry capacity for items
+- **End of wave stats:** Who killed more, accuracy, etc.
+- **Leaderboard:** Track best performances
 
 ---
 
@@ -124,6 +134,7 @@ Two roles designed for 2-player core experience:
 
 **Phase 1 combat loop:**
 - Normal shot → enemy dies but splits into 2 smaller enemies
+- Melee attack → close-range option for combat variety
 - "Git Revert" beam (active ability) → clean kill, enemy dissolves into code fragments, no split
 - Risk/reward: Git Revert is short-range (must get close) and has cooldown
 - Player tension: spend cooldown and risk getting close, or stay safe and deal with splits?
@@ -131,6 +142,8 @@ Two roles designed for 2-player core experience:
   - Solo activation = partial effect
   - Both players activate together = full "garbage collection" wipe
   - Co-op tension: coordinate timing for maximum impact
+- Random powerup drops from killed enemies (occasional, not every kill — similar to CoD)
+- Scoreboard / kill counter displayed during gameplay
 
 *Why this one first:* Clear cause-and-effect, easy to debug, classic side-scroller mechanic.
 
@@ -301,53 +314,48 @@ See `/docs/GOLDEN_PATH.md` for acceptance criteria. Lanes branch from this worki
 
 ## 13. Drew's Decisions
 
-*(This section will be filled in during Drew's first session)*
-
 | Decision | Drew's Choice | Date |
 |----------|---------------|------|
-| Movement feel | TBD | |
-| Player speed | TBD | |
-| Jump style | TBD | |
-| Shooting style | TBD | |
-| Placeholder colors | TBD | |
-| Test wave count | TBD | |
-| Priority feel | TBD | |
+| Movement feel | Regular/grounded with sprint stamina bar; powerups can unlock floaty/moon jumps; jump fatigue (consecutive jumps get shorter) | 2026-02-05 |
+| Player speed | Between medium and slow — deliberate, positioning matters | 2026-02-05 |
+| Jump style | Single jump only | 2026-02-05 |
+| Shooting style | Both — tap for single shots, hold for rapid fire | 2026-02-05 |
+| Placeholder colors | Player 1: Blue, Player 2: White, Enemy: Red, Projectiles: Yellow | 2026-02-05 |
+| Test wave count | 5 waves | 2026-02-05 |
+| Priority feel | Controls feel good + teamwork required; difficulty tuning comes later | 2026-02-05 |
 
 ---
 
 ## 14. Open Questions for Drew
 
-> **Drew's First Session:** Use `/docs/agent_prompts/DREW_FIRST_SESSION.md` — this prompt will ask Drew these questions, record his answers, and then build the golden path.
+### Answered in First Session (2026-02-05)
+- ~~Movement feel~~ → Regular/grounded with sprint bar + jump fatigue; powerups unlock floaty movement
+- ~~Player speed~~ → Between medium and slow
+- ~~Jump style~~ → Single jump only
+- ~~Shooting style~~ → Both (tap + hold)
+- ~~Placeholder colors~~ → P1 Blue, P2 White, Enemy Red, Projectiles Yellow
+- ~~Wave count~~ → 5 waves
+- ~~Priority feel~~ → Controls + teamwork first, difficulty later
 
-These decisions are intentionally left open for Drew's input:
-
-### Gameplay Feel (Asked in First Session)
-- **Movement feel:** Floaty jumps (Mega Man) vs snappy/heavy (Contra)? → *First session Q1*
-- **Player speed:** Fast/medium/slow running? → *First session Q2*
-- **Jump style:** Single, double, or variable height? → *First session Q4*
-- **Shooting style:** Tap, hold, or both? → *First session Q5*
-
-### Difficulty & Tuning (Partially in First Session)
-- **Wave count:** How many waves for first test? → *First session Q6*
+### Still Open — Difficulty & Tuning
 - **Enemy speed/aggression:** How punishing should Merge Conflicts be? → *After first playtest*
 - **Cooldown timing:** How long between Git Revert uses? Clear Context uses? → *After first playtest*
 
-### Visual Style (Partially in First Session)
-- **Placeholder colors:** What colors for players, enemies, projectiles? → *First session Q3*
+### Still Open — Visual Style
 - **Player character design:** What should the player look like? Human? Robot? Abstract code entity? → *Phase 1 art pass*
 - **Color palette:** Dark/neon (cyberpunk)? Bright/colorful (arcade)? → *Phase 1 art pass*
 - **Environment theme:** Server room? Abstract code space? Office building gone wrong? → *Phase 1 art pass*
 - **Death/respawn visuals:** Pixelated explosion? Glitch effect? → *Phase 1 art pass*
 
-### Sound Design (Later)
+### Still Open — Sound Design
 - **Sound direction:** Retro chiptune? Modern with retro flavor? → *After golden path*
 
-### Lore & Personality (Later)
+### Still Open — Lore & Personality
 - **4th wall break style:** Snarky? Deadpan? Encouraging? → *Phase 2+*
 - **Enemy personality:** Are Merge Conflicts menacing? Annoying? Tragic? → *Phase 2+*
 - **Victory/defeat messages:** What does the game say when you win or lose? → *Phase 2+*
 
-### Future Ideas (Phase 2+)
+### Still Open — Future Ideas
 - **Which enemy type next:** Context Rot? Hallucination? Dependency Hell?
 - **Role preference:** Does Drew want to play Striker or Engineer?
 - **Boss concepts:** Any ideas for what the first boss should be?
