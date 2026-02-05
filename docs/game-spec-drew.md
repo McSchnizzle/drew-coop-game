@@ -24,7 +24,7 @@ Core combat + networking functional. Goal: Drew can play with one friend and con
 | **Networking** | Host is authority — Player 1 hosts and runs game logic, Player 2 sends inputs, host sends state |
 | **Level structure** | Scrolling level with boundaries — camera follows players, enemies spawn from sides/ahead |
 | **Art style** | 16-bit (SNES/Genesis era) |
-| **Input** | Keyboard |
+| **Input** | Keyboard + controller (Xbox/PlayStation) |
 
 ### Phase 2: Prove It's Fun
 Shift to top-down perspective, add variety, roles, tuning, and first boss. Goal: Something worth showing to outside playtesters.
@@ -63,7 +63,7 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 | **Core emotion** | Panic + clutch teamwork |
 | **Difficulty** | Challenging/punishing — deaths teach, victories feel earned |
 | **Platforms** | Mac + Windows |
-| **Input** | Keyboard initially; Xbox controller support planned |
+| **Input** | Keyboard + controller from Phase 1 |
 
 ---
 
