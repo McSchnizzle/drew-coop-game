@@ -44,6 +44,20 @@ All events use snake_case: `player_died`, `enemy_spawned`, `wave_started`
 | `game_won` | Lane B (Combat) | `{ total_waves: int, time_elapsed: float }` | Lane A (Networking), Lane C (Art/UI) |
 | `game_lost` | Lane B (Combat) | `{ wave_reached: int, time_elapsed: float }` | Lane A (Networking), Lane C (Art/UI) |
 
+## Powerup Events
+
+| Event | Emitted By | Payload | Listeners |
+|-------|-----------|---------|-----------|
+| `powerup_spawned` | Lane B (Combat) | `{ powerup_id: int, powerup_type: String, position: Vector2 }` | Lane A (Networking), Lane C (Art/UI) |
+| `powerup_collected` | Lane B (Combat) | `{ powerup_id: int, player_id: int, powerup_type: String }` | Lane A (Networking), Lane C (Art/UI) |
+| `powerup_expired` | Lane B (Combat) | `{ player_id: int, powerup_type: String }` | Lane C (Art/UI) |
+
+## Score Events
+
+| Event | Emitted By | Payload | Listeners |
+|-------|-----------|---------|-----------|
+| `score_updated` | Lane B (Combat) | `{ player_id: int, kills: int, clean_kills: int }` | Lane C (Art/UI) |
+
 ## Network Events
 
 | Event | Emitted By | Payload | Listeners |
@@ -60,7 +74,10 @@ All events use snake_case: `player_died`, `enemy_spawned`, `wave_started`
 # InputPayload
 {
     move_direction: Vector2,  # -1 to 1 for each axis
+    jump_pressed: bool,
     shoot_pressed: bool,
+    melee_pressed: bool,
+    sprint_pressed: bool,
     ability_pressed: bool,    # Git Revert
     super_pressed: bool       # Clear Context
 }

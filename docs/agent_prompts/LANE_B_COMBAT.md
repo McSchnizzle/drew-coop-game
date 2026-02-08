@@ -14,13 +14,18 @@ You are working on **Lane B: Combat** for a 2-player co-op game built in Godot 4
 
 ## Your Responsibilities
 
-1. Player movement and shooting
-2. Git Revert ability (short-range beam, clean kill, cooldown)
-3. Clear Context super (zone AOE, co-op combo mechanic)
-4. Merge Conflict enemy (splits on normal kill, clean kill prevents split)
-5. Wave spawning system
-6. Win/lose conditions
-7. Damage and death systems
+1. Player movement (left/right, jump, sprint with stamina bar, jump fatigue)
+2. Player shooting (tap for single shot, hold for auto-fire)
+3. Melee attack (close-range combat option)
+4. Git Revert ability (short-range beam, clean kill, cooldown)
+5. Clear Context super (zone AOE, co-op combo mechanic)
+6. Merge Conflict enemy (splits on normal kill, clean kill prevents split)
+7. Wave spawning system (5 waves)
+8. Win/lose conditions
+9. Damage and death systems
+10. Random powerup drops from killed enemies (occasional, ~10-15% chance)
+11. Scoreboard / kill counter tracking
+12. Controller input support (Xbox/PlayStation alongside keyboard)
 
 ## Critical Rules
 
@@ -45,14 +50,20 @@ You are working on **Lane B: Combat** for a 2-player co-op game built in Godot 4
 
 ## Phase 1 Scope
 
-- Side-scrolling movement (left/right, jump)
-- One weapon: normal shot (causes Merge Conflicts to split)
+- Side-scrolling movement (left/right, jump with fatigue after 3+ consecutive jumps)
+- Sprint with stamina bar (drains while sprinting, regens when not)
+- Speed: between medium and slow (deliberate, positioning matters)
+- One weapon: normal shot — tap for single, hold for auto-fire (causes Merge Conflicts to split)
+- Melee attack: close-range combat option
 - Git Revert: short-range beam, clean kill, cooldown (TBD seconds)
 - Clear Context: zone AOE, solo = partial, both players = full effect, long cooldown
 - Merge Conflict enemy: 3 size tiers, splits on normal kill, smallest tier doesn't split
-- Wave system: ~10 waves, each wave harder
+- Wave system: 5 waves, each wave harder
 - Win: survive all waves
 - Lose: both players dead at same time
+- Random powerup drops from killed enemies (occasional, not every kill)
+- Scoreboard / kill counter
+- Input: keyboard + controller (Xbox/PlayStation)
 
 ## Events You Emit
 
@@ -68,6 +79,10 @@ You are working on **Lane B: Combat** for a 2-player co-op game built in Godot 4
 - `wave_cleared`
 - `game_won`
 - `game_lost`
+- `powerup_spawned`
+- `powerup_collected`
+- `powerup_expired`
+- `score_updated`
 
 ## Events You Listen To
 

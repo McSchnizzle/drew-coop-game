@@ -36,8 +36,11 @@ Prove the full loop works end-to-end with minimal features:
 - [ ] Player 1 can host a game (lobby screen with join code)
 - [ ] Player 2 can join using the code
 - [ ] Both players see each other on screen
-- [ ] Both players can move (left/right, jump)
-- [ ] Both players can shoot (basic projectile)
+- [ ] Both players can move (left/right, jump, sprint)
+- [ ] Both players can shoot (tap + hold auto-fire)
+- [ ] Sprint stamina bar works (drains/regens)
+- [ ] Jump fatigue works (consecutive jumps get shorter)
+- [ ] Controller input works (Xbox/PlayStation)
 - [ ] One enemy spawns (placeholder Merge Conflict)
 - [ ] Enemy moves toward players
 - [ ] Shooting enemy kills it (no split mechanic yet)
@@ -51,7 +54,7 @@ Prove the full loop works end-to-end with minimal features:
 - No waves yet
 - No win/lose conditions yet
 - No real art (colored rectangles are fine)
-- No UI beyond basic health display
+- No UI beyond basic health + stamina display
 
 ## Implementation Notes
 
