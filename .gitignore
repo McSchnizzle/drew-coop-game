@@ -1,0 +1,12 @@
+# Godot cache and generated files
+.godot/
+*.uid
+export_presets.cfg
+
+# macOS
+.DS_Store
+
+# Godot export builds
+*.x86_64
+*.pck
+*.dmg

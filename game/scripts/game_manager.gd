@@ -47,7 +47,7 @@ func _on_peer_connected(id: int) -> void:
 
 func _on_peer_disconnected(id: int) -> void:
 	# Remove the player node when they disconnect.
-	var players_node := $Players
+	var players_node = $Players
 	for child in players_node.get_children():
 		if child.name == str(id):
 			child.queue_free()
@@ -57,7 +57,7 @@ func _on_peer_disconnected(id: int) -> void:
 # ── Player Spawning ──────────────────────────────────────────────────────────
 
 func _spawn_player(peer_id: int) -> void:
-	var player := PLAYER_SCENE.instantiate()
+	var player = PLAYER_SCENE.instantiate()
 
 	# Use peer_id as node name so MultiplayerSpawner can identify it uniquely.
 	player.name = str(peer_id)
@@ -70,7 +70,7 @@ func _spawn_player(peer_id: int) -> void:
 	player.position = PLAYER_SPAWN_POSITIONS[spawn_index]
 
 	# Set player color based on host vs client.
-	var color_rect := player.get_node("ColorRect") as ColorRect
+	var color_rect = player.get_node("ColorRect") as ColorRect
 	if color_rect:
 		color_rect.color = COLOR_HOST if peer_id == 1 else COLOR_CLIENT
 
@@ -87,7 +87,7 @@ func _spawn_player(peer_id: int) -> void:
 # ── Enemy Spawning ───────────────────────────────────────────────────────────
 
 func _spawn_test_enemy() -> void:
-	var enemy := ENEMY_SCENE.instantiate()
+	var enemy = ENEMY_SCENE.instantiate()
 	enemy.enemy_id = _next_enemy_id
 	_next_enemy_id += 1
 
