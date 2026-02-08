@@ -55,6 +55,59 @@ func get_local_ip() -> String:
 	return "127.0.0.1"
 
 
+# ── Room Code System (IP ↔ short alphanumeric code for easy sharing) ──────────
+
+# 32-char alphabet: no 0, 1, I, O to avoid visual confusion.
+const _CODE_CHARS := "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+## Encodes a local IP address into a short room code like "52C-K2D6".
+func ip_to_room_code(ip: String) -> String:
+	var octets := ip.split(".")
+	if octets.size() != 4:
+		return ""
+
+	var value: int = (octets[0].to_int() << 24) | (octets[1].to_int() << 16) | (octets[2].to_int() << 8) | octets[3].to_int()
+
+	var base: int = _CODE_CHARS.length()
+	var code := ""
+	while value > 0:
+		code = _CODE_CHARS[value % base] + code
+		value = value / base
+
+	# Pad to 7 characters so all codes are the same length.
+	while code.length() < 7:
+		code = _CODE_CHARS[0] + code
+
+	# Format as XXX-XXXX for readability.
+	return code.substr(0, 3) + "-" + code.substr(3)
+
+
+## Decodes a room code back into an IP address. Returns "" on invalid input.
+func room_code_to_ip(code: String) -> String:
+	code = code.to_upper().strip_edges().replace("-", "").replace(" ", "")
+
+	var base: int = _CODE_CHARS.length()
+	var value: int = 0
+	for i in code.length():
+		var idx := _CODE_CHARS.find(code[i])
+		if idx == -1:
+			return ""
+		value = value * base + idx
+
+	var d: int = value & 0xFF
+	value = value >> 8
+	var c: int = value & 0xFF
+	value = value >> 8
+	var b: int = value & 0xFF
+	value = value >> 8
+	var a: int = value & 0xFF
+
+	if a > 255 or b > 255 or c > 255 or d > 255:
+		return ""
+
+	return "%d.%d.%d.%d" % [a, b, c, d]
+
+
 # ── Signal Wiring ──────────────────────────────────────────────────────────────
 
 func _connect_signals() -> void:

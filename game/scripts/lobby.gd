@@ -8,18 +8,24 @@ extends Control
 @onready var start_button: Button = %StartButton
 @onready var address_input: LineEdit = %AddressInput
 @onready var status_label: Label = %StatusLabel
+@onready var room_code_container: HBoxContainer = %RoomCodeContainer
+@onready var room_code_label: Label = %RoomCodeLabel
+@onready var copy_button: Button = %CopyButton
 
 var _connected_player_count: int = 0
 var _is_host: bool = false
+var _room_code: String = ""
 
 
 func _ready() -> void:
 	start_button.visible = false
+	room_code_container.visible = false
 	status_label.text = "Ready to host or join."
 
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	start_button.pressed.connect(_on_start_pressed)
+	copy_button.pressed.connect(_on_copy_pressed)
 
 	# Listen for networking events to update lobby state.
 	Events.connection_established.connect(_on_connection_established)
@@ -39,7 +45,10 @@ func _on_host_pressed() -> void:
 	_is_host = true
 	_connected_player_count = 1  # Host counts as first player.
 	var ip := NetworkManager.get_local_ip()
-	status_label.text = "Hosting — join code: %s:%d" % [ip, NetworkManager.DEFAULT_PORT]
+	_room_code = NetworkManager.ip_to_room_code(ip)
+	room_code_label.text = "Room Code:  %s" % _room_code
+	room_code_container.visible = true
+	status_label.text = "Waiting for players..."
 
 	# Disable host/join buttons once hosting.
 	host_button.disabled = true
@@ -48,27 +57,43 @@ func _on_host_pressed() -> void:
 
 
 func _on_join_pressed() -> void:
-	var address := address_input.text.strip_edges()
-	if address.is_empty():
-		status_label.text = "Enter the host IP address to join."
+	var input_text := address_input.text.strip_edges()
+	if input_text.is_empty():
+		status_label.text = "Enter a room code or IP address."
 		return
 
-	# Allow "ip:port" format; default to DEFAULT_PORT if no port supplied.
-	var parts := address.split(":")
-	var ip := parts[0]
-	var port := NetworkManager.DEFAULT_PORT
-	if parts.size() > 1:
-		port = parts[1].to_int()
+	var ip: String
+	var port: int = NetworkManager.DEFAULT_PORT
+
+	# If it contains a dot, treat as IP address. Otherwise, treat as room code.
+	if "." in input_text:
+		var parts := input_text.split(":")
+		ip = parts[0]
+		if parts.size() > 1:
+			port = parts[1].to_int()
+	else:
+		ip = NetworkManager.room_code_to_ip(input_text)
+		if ip.is_empty():
+			status_label.text = "Invalid room code. Try again."
+			return
 
 	var error := NetworkManager.join_game(ip, port)
 	if error != OK:
 		status_label.text = "Failed to join: %s" % error_string(error)
 		return
 
-	status_label.text = "Connecting to %s:%d..." % [ip, port]
+	status_label.text = "Connecting..."
 	host_button.disabled = true
 	join_button.disabled = true
 	address_input.editable = false
+
+
+func _on_copy_pressed() -> void:
+	DisplayServer.clipboard_set(_room_code)
+	copy_button.text = "Copied!"
+	await get_tree().create_timer(1.5).timeout
+	if is_instance_valid(copy_button):
+		copy_button.text = "Copy"
 
 
 func _on_start_pressed() -> void:
@@ -105,6 +130,8 @@ func _on_player_left(_player_id: int) -> void:
 func _on_connection_lost(_peer_id: int, reason: String) -> void:
 	status_label.text = "Connection lost: %s" % reason
 	start_button.visible = false
+	room_code_container.visible = false
+	_room_code = ""
 	host_button.disabled = false
 	join_button.disabled = false
 	address_input.editable = true

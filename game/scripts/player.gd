@@ -61,6 +61,20 @@ func _ready() -> void:
 	# Pre-load projectile scene so we don't load it every shot.
 	_projectile_scene = load(PROJECTILE_SCENE)
 
+	# When replicated via MultiplayerSpawner, the node name carries the peer_id
+	# (set by game_manager before add_child). Use it to configure authority and camera
+	# since @export values aren't replicated to clients by the spawner.
+	if name.is_valid_int():
+		player_id = name.to_int()
+
+	# Set player color locally: host (id 1) = Blue, everyone else = White.
+	var color_rect = $ColorRect as ColorRect
+	if color_rect:
+		if player_id == 1:
+			color_rect.color = Color(0.2, 0.4, 1.0, 1.0)
+		else:
+			color_rect.color = Color(1.0, 1.0, 1.0, 1.0)
+
 	# Only the local player gets the camera.
 	if player_id == multiplayer.get_unique_id():
 		$Camera2D.make_current()
@@ -85,18 +99,26 @@ func _physics_process(delta: float) -> void:
 # ── Input Gathering (runs on owning peer only) ──────────────────────────────
 
 func _gather_input() -> void:
+	# Ignore input when window isn't focused — prevents controller input from
+	# bleeding between instances when testing two windows on the same machine.
+	if not get_window().has_focus():
+		input_move_dir = 0.0
+		input_jump = false
+		input_sprint = false
+		input_shoot = false
+		input_melee = false
+		input_ability = false
+		input_super = false
+		return
+
 	input_move_dir = Input.get_axis("move_left", "move_right")
-	# For one-shot actions, set true on press; server will consume and clear.
-	if Input.is_action_just_pressed("jump"):
-		input_jump = true
+	# One-shot inputs: directly assign so they auto-clear to false next frame.
+	input_jump = Input.is_action_just_pressed("jump")
 	input_sprint = Input.is_action_pressed("sprint")
 	input_shoot = Input.is_action_pressed("shoot")
-	if Input.is_action_just_pressed("melee"):
-		input_melee = true
-	if Input.is_action_just_pressed("ability"):
-		input_ability = true
-	if Input.is_action_just_pressed("super"):
-		input_super = true
+	input_melee = Input.is_action_just_pressed("melee")
+	input_ability = Input.is_action_just_pressed("ability")
+	input_super = Input.is_action_just_pressed("super")
 
 
 # ── Server-Side Physics (authoritative game logic) ──────────────────────────
@@ -201,18 +223,20 @@ func _fire_projectile() -> void:
 	# Flip shoot point to match facing direction BEFORE reading its position.
 	$ShootPoint.position.x = absf($ShootPoint.position.x) * _facing
 
-	var spawn_pos := $ShootPoint.global_position
-	var projectile := _projectile_scene.instantiate()
+	var spawn_pos: Vector2 = $ShootPoint.global_position
+	var projectile = _projectile_scene.instantiate()
 	projectile.direction = Vector2(_facing, 0)
 	projectile.owner_id = player_id
 	projectile.name = "Projectile_%d" % (randi() % 1000000)
 
+	# Set position BEFORE add_child so MultiplayerSpawner includes it in spawn state.
+	# Projectiles container is at (0,0), so local position == global position.
+	projectile.position = spawn_pos
+
 	# Spawn into the Projectiles container (MultiplayerSpawner handles replication).
-	var projectiles_node := get_tree().current_scene.get_node("Projectiles")
+	var projectiles_node = get_tree().current_scene.get_node("Projectiles")
 	if projectiles_node:
 		projectiles_node.add_child(projectile, true)
-		# Set global_position AFTER adding to tree so it resolves correctly.
-		projectile.global_position = spawn_pos
 
 
 # ── Health / Damage ──────────────────────────────────────────────────────────
