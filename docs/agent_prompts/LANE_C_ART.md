@@ -49,6 +49,8 @@ You are working on **Lane C: Art + Assets** for a 2-player co-op game built in G
 - Run animation
 - Jump animation (up, apex, fall)
 - Shoot animation
+- Melee attack animation
+- Sprint animation
 - Git Revert ability animation
 - Death animation
 
@@ -71,8 +73,11 @@ You are working on **Lane C: Art + Assets** for a 2-player co-op game built in G
 - Health bar
 - Git Revert cooldown indicator
 - Clear Context cooldown indicator
-- Wave counter ("Wave 3/10")
+- Wave counter ("Wave 3/5")
 - Co-op combo indicator (when both players activate Clear Context)
+- Scoreboard / kill counter display
+- Sprint stamina bar
+- Powerup pickup icons and active effect indicators
 
 ### Environment
 - Basic platform tileset
@@ -85,6 +90,8 @@ You are working on **Lane C: Art + Assets** for a 2-player co-op game built in G
 - **Generation method:** AI-generated (Nano Banana Pro, GPT Imagen 1.5) with manual cleanup
 - **Readability:** Enemies must be instantly distinguishable from background and players
 - **Color palette:** TBD (open question for Drew — see game spec section 13)
+
+> **Note:** Lane C scope evolves across phases. In Phase 1, focus is art + assets. In Phase 2+, this lane expands to include narrative, dialogue, and level concepts.
 
 ## At End of Session
 

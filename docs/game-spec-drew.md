@@ -45,7 +45,7 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 | Aspect | Decision |
 |--------|----------|
 | **Perspective** | Full 3D (first-person vs third-person TBD) |
-| **Networking** | Peer-to-peer with reconciliation (each player runs simulation, sync differences) |
+| **Networking** | Host-authoritative with dedicated server option (stay server-authoritative for simplicity; peer-to-peer reconciliation not recommended) |
 | **Modes** | Campaign mode with story progression + Roguelite mode with permanent unlocks |
 | **Content** | Multiple bosses and levels |
 | **Systems** | Full progression systems |
@@ -89,7 +89,7 @@ Full 3D, campaign/roguelite structure, content, and polish. Goal: Something rele
 2. Wave starts — Merge Conflict enemies spawn
 3. Players clear the wave using normal shots, Git Revert, and Clear Context
 4. Brief pause between waves, then next wave (more/faster enemies)
-5. Win condition: survive all waves (e.g., 10 waves)
+5. Win condition: survive all waves (5 waves)
 6. Lose condition: both players dead at same time
 
 ### Full Vision Loop (Phase 2+)
@@ -359,6 +359,91 @@ See `/docs/GOLDEN_PATH.md` for acceptance criteria. Lanes branch from this worki
 - **Which enemy type next:** Context Rot? Hallucination? Dependency Hell?
 - **Role preference:** Does Drew want to play Striker or Engineer?
 - **Boss concepts:** Any ideas for what the first boss should be?
+
+---
+
+## 15. Brainstormed Features (Team Review)
+
+### 15.1 "Stack Overflow" -- Cascading Buff/Debuff Tower (Phase 2)
+
+A shared co-op resource where every kill, ability use, or objective completion pushes a frame onto a visible "call stack" HUD element. The stack grants escalating buffs but crashes catastrophically if players get too greedy.
+
+**Mechanics:**
+- Each kill/ability pushes a frame. Stack height is shared between both players.
+- Every 5 frames: a buff tier unlocks (+10% damage, +movement speed, etc.).
+- At 20 frames: DANGER zone. Players must find a "return statement" terminal on the map to safely pop the stack and bank their buffs as a permanent wave bonus.
+- At 25 frames: OVERFLOW. Stack crashes -- 3-second stun, controls scrambled for 5 seconds, panic enemy spawn.
+- Co-op tension: one player may want to push for buffs while the other wants to cash out. Forces real-time negotiation.
+
+**Phase:** 2 (requires HUD work + terminal interactables)
+**Why it's fun:** Risk/reward gambling loop layered on combat. Embodies the real developer experience of "just one more function call..." before everything crashes. Shared resource forces co-op communication.
+
+---
+
+### 15.2 "Rubber Duck Companion" -- Deployable Debug Ally (Phase 1 or 2)
+
+A small AI-controlled rubber duck follower that "debugs" enemies with a slow DOT beam. Drops from clean kills (Git Revert). Only one duck active at a time. Periodically "asks questions" via speech bubbles with dev humor, which draws all enemy aggro to itself for 3 seconds.
+
+**Mechanics:**
+- Pickup spawns from ~10% of clean kills (Git Revert kills).
+- Player who picks it up gets a follower that auto-targets nearest enemy with slow DOT beam.
+- Every 15 seconds: duck "asks a question" (speech bubble: "Have you tried turning it off and on again?", "But does it work in production?") -- all enemies in radius aggro the duck for 3 seconds.
+- Duck has its own small health bar. If destroyed, 30-second cooldown before another can spawn.
+- Co-op dynamic: duck-holder becomes priority target during question phases; other player must cover them.
+
+**Phase:** Could fit Phase 1 as a simple pickup, or Phase 2 for full implementation
+**Why it's fun:** Rubber duck debugging is universally known in dev culture. Charming, funny, and creates a genuine escort/protect dynamic. Aggro-drawing mechanic adds tactical depth -- use question phases to reposition or revive teammates.
+
+---
+
+### 15.3 "Deadlock" -- Co-op Puzzle Trap Rooms (Phase 2)
+
+Between waves, players occasionally get teleported into a "Deadlock Chamber" where they're physically separated by a barrier. Each side has a terminal puzzle, but each player's screen shows hints that solve the OTHER player's puzzle. Both must solve within a time limit.
+
+**Mechanics:**
+- Triggers between waves (~1 in 3 chance, or guaranteed every 3rd wave).
+- Players split into separate halves of a small room, each with a terminal puzzle.
+- Player A's screen shows patterns/colors that are the ANSWER to Player B's puzzle, and vice versa.
+- 30-second timer. Success: bonus loot + temporary buff. Failure: minor damage + "Deadlock Debuff" (slower movement for next wave).
+- Puzzles are simple but require verbal communication: "I see red-blue-green on my side!"
+
+**Phase:** 2 (requires puzzle UI + room transition system)
+**Why it's fun:** Deadlocks are a real concurrency problem solved by communication and coordination -- exactly what this mechanic demands. Breaks up pure action with frantic cooperation. Rewards players who talk on Discord, reinforcing "panic + clutch teamwork."
+
+---
+
+### 15.4 "Legacy Code" -- Evolving Map Hazard System (Phase 2 or 3)
+
+As players progress through waves, the arena accumulates persistent environmental hazards left behind by defeated enemies. Normal kills leave "deprecated code" zones that slowly expand. Only clean kills (Git Revert) leave the ground clean. Tech debt as a literal spatial mechanic.
+
+**Mechanics:**
+- Normal kill: leaves a small hazard patch at death location (slow zone, DOT zone, or ability-cooldown zone depending on enemy type).
+- Split kills: leave TWO smaller patches where children spawned.
+- Clean kill (Git Revert): leaves nothing -- ground stays clean.
+- Patches persist across waves and slowly grow (~1 pixel/second expansion).
+- Every 5 waves: a "Refactor Terminal" spawns. Channeling at it for 5 seconds (vulnerable!) clears all legacy code patches in a radius.
+- Phase 3 addition: patches can merge to create super-hazards.
+
+**Phase:** 2 (basic) or 3 (with merging super-hazards)
+**Why it's fun:** Tech debt as literal gameplay. Every lazy kill makes the arena worse for future waves. Creates long-term strategy on top of moment-to-moment combat. Massively increases Git Revert's value. The Refactor Terminal channeling moment creates exactly the panic+teamwork the game targets -- one player channels while the other defends.
+
+---
+
+### 15.5 "Code Review" -- Post-Wave Replay and Voting System (Phase 2 or 3)
+
+After each wave, the game shows a 10-second fast-forward replay highlighting key moments, then each player votes on a "Code Review Comment" for their partner that grants buffs, challenges, or modifiers.
+
+**Mechanics:**
+- After wave clear: 10-second sped-up replay (skip-able) with highlight camera on kills, deaths, clutch moments.
+- Each player votes on partner's performance:
+  - **"LGTM"** -- partner gets a small heal (15% HP).
+  - **"Request Changes"** -- partner gets a bonus challenge next wave (e.g., "get 3 clean kills") with a reward if completed.
+  - **"Needs Rewrite"** -- both players get a harder modifier next wave but with double XP/score.
+- Voting is simultaneous, revealed together for a fun reveal moment.
+- Stats displayed: kills, clean kill %, damage taken, abilities used, teammate revives.
+
+**Phase:** 2 (voting only) or 3 (with full replay system)
+**Why it's fun:** Code review is the most social part of software development. "Request Changes" is brilliantly passive-aggressive -- telling your co-op partner "you could do better" with a reward if they prove it. Replay shows moments missed during chaos. Stats feed into the competitive scoreboard Drew already wants.
 
 ---
 

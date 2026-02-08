@@ -17,12 +17,15 @@
 | `is_alive` | bool | OnChange | Combat | False when health <= 0 |
 | `ability_cooldown` | float | OnChange | Combat | Seconds until Git Revert ready |
 | `super_cooldown` | float | OnChange | Combat | Seconds until Clear Context ready |
-| `animation_state` | String | OnChange | Combat | Current animation: "idle", "run", "jump", "shoot", "ability", "dead" |
+| `stamina` | float | OnChange | Combat | Current sprint stamina (max 100) |
+| `animation_state` | String | OnChange | Combat | Current animation: "idle", "run", "sprint", "jump", "shoot", "melee", "ability", "hit", "dead" |
 
 **Sync Legend:**
 - `Init` = sent once when entity created
 - `Continuous` = sent every network tick
 - `OnChange` = sent only when value changes
+
+**Note:** Jump fatigue is tracked locally per client (consecutive jump count and penalty). It does not need network sync as each client applies fatigue to their own player's jump physics.
 
 ---
 
@@ -73,11 +76,23 @@
 
 ---
 
+## Powerup Entity
+
+| Field | Type | Sync | Owner | Description |
+|-------|------|------|-------|-------------|
+| `powerup_id` | int | Init | Combat | Unique identifier |
+| `powerup_type` | String | Init | Combat | "speed_boost", "damage_boost", "stamina_refill", "health_pack" |
+| `position` | Vector2 | Init | Combat | World position (spawns at enemy death location) |
+| `is_collected` | bool | OnChange | Combat | True when a player picks it up |
+
+---
+
 ## ID Generation Rules
 
 - **player_id**: Assigned by host, matches Godot multiplayer peer_id
 - **enemy_id**: Host generates, starts at 1000, increments
 - **projectile_id**: Host generates, starts at 10000, increments
+- **powerup_id**: Host generates, starts at 50000, increments
 - **effect_id**: Host generates, starts at 100000, increments
 
 This ensures no ID collisions across entity types.

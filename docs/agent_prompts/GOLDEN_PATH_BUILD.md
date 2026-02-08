@@ -122,31 +122,38 @@ Structure:
   - CollisionShape2D
   - Sprite2D (or ColorRect as placeholder)
   - Camera2D (only active for local player)
+  - ServerSynchronizer (MultiplayerSynchronizer) — authority: server, syncs position, velocity, health, animation_state
+  - InputSynchronizer (MultiplayerSynchronizer) — authority: owning peer, syncs move_direction, shoot_pressed, jump_pressed
 
 `/game/scripts/player.gd`
 
 Must handle:
-- Movement: left/right with A/D or arrow keys, jump with Space/W
-- Shooting: shoot with J or Left Mouse, spawns projectile
-- Sync: position replicated via `@rpc`
-- Authority: use `set_multiplayer_authority()` so each player controls their own
+- Movement: left/right with A/D or arrow keys (or left stick), jump with Space/W (or A button/Cross), sprint with Shift (or left stick click)
+- Shooting: shoot with J or Left Mouse (or right trigger), melee with K (or X button/Square)
+- Sync: position replicated via MultiplayerSynchronizer (ServerSynchronizer), input replicated via MultiplayerSynchronizer (InputSynchronizer)
+- Authority: server controls player state, each peer controls their own input via InputSynchronizer
 
 ```gdscript
-# Example structure
+# Example structure using dual MultiplayerSynchronizer
+@export var player_id: int = 1:
+    set(id):
+        player_id = id
+        $InputSynchronizer.set_multiplayer_authority(id)
+
 func _ready():
-    if is_multiplayer_authority():
+    if player_id == multiplayer.get_unique_id():
         $Camera2D.make_current()
 
 func _physics_process(delta):
-    if is_multiplayer_authority():
-        handle_input()
+    if multiplayer.is_server():
+        # Server reads synced input and applies game logic
+        var input_sync = $InputSynchronizer
+        velocity.x = input_sync.move_direction * RUN_SPEED
+        if input_sync.jump_pressed and is_on_floor():
+            velocity.y = JUMP_VELOCITY
+        velocity.y += GRAVITY * delta
         move_and_slide()
-        sync_position.rpc(global_position)
-
-@rpc("any_peer", "unreliable")
-func sync_position(pos: Vector2):
-    if not is_multiplayer_authority():
-        global_position = pos
+        # ServerSynchronizer auto-replicates position to all peers
 ```
 
 ### 3.5 Enemy Scene
@@ -246,6 +253,25 @@ Run two instances of the game (export or two editor windows with different ports
 
 ---
 
+## Controller Input Setup
+
+Define all actions in Project Settings → Input Map with both keyboard and controller bindings:
+
+| Action | Keyboard | Controller |
+|--------|----------|------------|
+| `move_left` | A / Left Arrow | Left Stick Left |
+| `move_right` | D / Right Arrow | Left Stick Right |
+| `jump` | Space / W | A (Xbox) / Cross (PS) |
+| `shoot` | J / Left Mouse | Right Trigger |
+| `melee` | K | X (Xbox) / Square (PS) |
+| `sprint` | Left Shift | Left Stick Click |
+| `ability` | L / Right Mouse | Left Trigger |
+| `super` | E / Middle Mouse | Both Bumpers |
+
+Use `Input.is_action_pressed()` and `Input.get_axis()` so keyboard and controller work identically with no extra code.
+
+---
+
 ## Important Technical Notes
 
 ### Multiplayer Authority
@@ -270,6 +296,14 @@ Use `MultiplayerSpawner` node to automatically replicate spawned scenes:
 2. Set spawn path to the container node (e.g., "Players")
 3. Add spawnable scenes in the inspector
 4. When host calls `container.add_child(player_instance)`, it auto-replicates
+
+### Networking Gotchas
+- Do NOT call `set_multiplayer_authority()` in `_enter_tree()` — use `_ready()` or an exported property setter
+- Use unique node names for spawned entities (use entity ID as name) to avoid "has_node is true" errors
+- Connect `multiplayer.peer_connected` BEFORE setting `multiplayer.multiplayer_peer`
+- Use `"reliable"` RPC mode for state changes (death, abilities, wave events); only use `"unreliable"` for position/velocity
+- Do NOT use `change_scene_to_packed()` during multiplayer — manage scene transitions via node add/remove
+- Both test instances must use the same Godot version or connection silently fails
 
 ---
 
