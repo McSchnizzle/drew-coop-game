@@ -1,0 +1,40 @@
+## Signal bus autoload — single source of truth for all game events.
+## Add this as an autoload named "Events" in Project Settings.
+## See docs/interfaces/game_events.md for the full contract.
+extends Node
+
+# ── Player Events ──────────────────────────────────────────────────────────────
+signal player_joined(player_id: int, spawn_position: Vector2)
+signal player_left(player_id: int)
+signal player_input(player_id: int, input: Dictionary)
+signal player_died(player_id: int, position: Vector2)
+signal player_respawned(player_id: int, position: Vector2)
+
+# ── Enemy Events ───────────────────────────────────────────────────────────────
+signal enemy_spawned(enemy_id: int, enemy_type: String, position: Vector2)
+signal enemy_died(enemy_id: int, killed_by: int, clean_kill: bool)
+signal enemy_split(parent_id: int, child_ids: Array, positions: Array)
+
+# ── Ability Events ─────────────────────────────────────────────────────────────
+signal ability_activated(player_id: int, ability: String, position: Vector2, direction: Vector2)
+signal ability_ready(player_id: int, ability: String)
+signal clear_context_combo(player_ids: Array, center: Vector2, radius: float)
+
+# ── Wave Events ────────────────────────────────────────────────────────────────
+signal wave_started(wave_number: int, enemy_count: int)
+signal wave_cleared(wave_number: int)
+signal game_won(total_waves: int, time_elapsed: float)
+signal game_lost(wave_reached: int, time_elapsed: float)
+
+# ── Powerup Events ─────────────────────────────────────────────────────────────
+signal powerup_spawned(powerup_id: int, powerup_type: String, position: Vector2)
+signal powerup_collected(powerup_id: int, player_id: int, powerup_type: String)
+signal powerup_expired(player_id: int, powerup_type: String)
+
+# ── Score Events ───────────────────────────────────────────────────────────────
+signal score_updated(player_id: int, kills: int, clean_kills: int)
+
+# ── Network Events ─────────────────────────────────────────────────────────────
+signal connection_established(peer_id: int, is_host: bool)
+signal connection_lost(peer_id: int, reason: String)
+signal game_state_sync(state: Dictionary)
