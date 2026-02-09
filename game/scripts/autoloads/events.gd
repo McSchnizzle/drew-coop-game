@@ -1,4 +1,4 @@
-## Signal bus autoload — single source of truth for all game events.
+## Signal bus autoload -- single source of truth for all game events.
 ## Add this as an autoload named "Events" in Project Settings.
 ## See docs/interfaces/game_events.md for the full contract.
 extends Node
@@ -38,3 +38,32 @@ signal score_updated(player_id: int, kills: int, clean_kills: int)
 signal connection_established(peer_id: int, is_host: bool)
 signal connection_lost(peer_id: int, reason: String)
 signal game_state_sync(state: Dictionary)
+
+# ── Role Events ────────────────────────────────────────────────────────────────
+signal role_selected(player_id: int, role: String)
+signal role_assigned(player_id: int, role: String)
+
+# ── Revive Events ──────────────────────────────────────────────────────────────
+signal revive_started(rescuer_id: int, target_id: int)
+signal revive_progress(rescuer_id: int, target_id: int, progress: float)
+signal revive_completed(rescuer_id: int, target_id: int)
+signal revive_cancelled(rescuer_id: int, target_id: int)
+signal player_downed(player_id: int, position: Vector2)
+signal player_bleedout(player_id: int)
+
+# ── Status Effect Events ──────────────────────────────────────────────────────
+signal status_applied(entity_id: int, effect_name: String, duration: float)
+signal status_removed(entity_id: int, effect_name: String)
+
+# ── Super Events ──────────────────────────────────────────────────────────────
+signal super_charged(player_id: int, charge: float)
+signal super_activated(player_id: int, super_name: String)
+
+# ── Turret Events ─────────────────────────────────────────────────────────────
+signal turret_deployed(owner_id: int, turret_id: int, position: Vector2)
+signal turret_destroyed(turret_id: int)
+
+# ── Enemy-Specific Events ─────────────────────────────────────────────────────
+signal hallucination_revealed(enemy_id: int, position: Vector2)
+signal dependency_aura_entered(player_id: int, enemy_id: int)
+signal dependency_aura_exited(player_id: int, enemy_id: int)

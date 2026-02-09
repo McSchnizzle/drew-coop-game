@@ -1,4 +1,4 @@
-## Lobby scene logic — host/join UI and game start flow.
+## Lobby scene logic -- host/join UI, role selection, and game start flow.
 ## Attach this script to the root Control node of lobby.tscn.
 extends Control
 
@@ -11,27 +11,79 @@ extends Control
 @onready var room_code_container: HBoxContainer = %RoomCodeContainer
 @onready var room_code_label: Label = %RoomCodeLabel
 @onready var copy_button: Button = %CopyButton
+@onready var striker_button: Button = %StrikerButton
+@onready var engineer_button: Button = %EngineerButton
+@onready var role_label: Label = %RoleLabel
 
 var _connected_player_count: int = 0
 var _is_host: bool = false
 var _room_code: String = ""
+var _selected_role: String = "striker"
 
 
 func _ready() -> void:
 	start_button.visible = false
 	room_code_container.visible = false
 	status_label.text = "Ready to host or join."
+	role_label.text = "Role: Striker"
 
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	copy_button.pressed.connect(_on_copy_pressed)
+	striker_button.pressed.connect(_on_striker_pressed)
+	engineer_button.pressed.connect(_on_engineer_pressed)
 
 	# Listen for networking events to update lobby state.
 	Events.connection_established.connect(_on_connection_established)
 	Events.player_joined.connect(_on_player_joined)
 	Events.player_left.connect(_on_player_left)
 	Events.connection_lost.connect(_on_connection_lost)
+
+	# Default visual state for role buttons
+	_update_role_buttons()
+
+
+# ── Role Selection ────────────────────────────────────────────────────────────
+
+func _on_striker_pressed() -> void:
+	_selected_role = "striker"
+	role_label.text = "Role: Striker"
+	_update_role_buttons()
+	Events.role_selected.emit(multiplayer.get_unique_id(), "striker")
+	if multiplayer.multiplayer_peer != null:
+		_request_role.rpc_id(1, "striker")
+
+
+func _on_engineer_pressed() -> void:
+	_selected_role = "engineer"
+	role_label.text = "Role: Engineer"
+	_update_role_buttons()
+	Events.role_selected.emit(multiplayer.get_unique_id(), "engineer")
+	if multiplayer.multiplayer_peer != null:
+		_request_role.rpc_id(1, "engineer")
+
+
+func _update_role_buttons() -> void:
+	striker_button.disabled = (_selected_role == "striker")
+	engineer_button.disabled = (_selected_role == "engineer")
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_role(role_name: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if sender_id == 0:
+		sender_id = 1  # Local call from host
+	NetworkManager.role_assignments[sender_id] = role_name
+	_confirm_role.rpc(sender_id, role_name)
+	print("Lobby: Player %d selected role '%s'" % [sender_id, role_name])
+
+
+@rpc("authority", "call_local", "reliable")
+func _confirm_role(player_id: int, role_name: String) -> void:
+	Events.role_assigned.emit(player_id, role_name)
 
 
 # ── Button Handlers ────────────────────────────────────────────────────────────
@@ -54,6 +106,9 @@ func _on_host_pressed() -> void:
 	host_button.disabled = true
 	join_button.disabled = true
 	address_input.editable = false
+
+	# Register host's role
+	NetworkManager.role_assignments[1] = _selected_role
 
 
 func _on_join_pressed() -> void:
@@ -115,6 +170,8 @@ func _on_connection_established(_peer_id: int, is_host: bool) -> void:
 	if not is_host:
 		status_label.text = "Connected to server!"
 		_connected_player_count = 1  # We'll get accurate count from player_joined signals.
+		# Send role selection to server
+		_request_role.rpc_id(1, _selected_role)
 
 
 func _on_player_joined(_player_id: int, _spawn_position: Vector2) -> void:
