@@ -7,6 +7,9 @@ const MAX_CLIENTS: int = 3
 
 var peer: ENetMultiplayerPeer
 
+# Role assignments: { peer_id: role_name } — set by lobby, read by game_manager
+var role_assignments: Dictionary = {}
+
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
