@@ -15,6 +15,8 @@ extends Control
 @onready var engineer_button: Button = %EngineerButton
 @onready var role_label: Label = %RoleLabel
 @onready var player_slots: HBoxContainer = %PlayerSlots
+@onready var leave_button: Button = %LeaveButton
+@onready var version_label: Label = %VersionLabel
 
 # Player stage constants
 const ROLE_COLORS := {
@@ -38,17 +40,13 @@ var _engineer_active_style: StyleBoxFlat
 
 
 func _ready() -> void:
-	start_button.visible = false
-	room_code_container.visible = false
-	status_label.text = "Ready to host or join."
-	role_label.text = "Role: Striker"
-
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	copy_button.pressed.connect(_on_copy_pressed)
 	striker_button.pressed.connect(_on_striker_pressed)
 	engineer_button.pressed.connect(_on_engineer_pressed)
+	leave_button.pressed.connect(_on_leave_pressed)
 
 	# Listen for networking events to update lobby state.
 	Events.connection_established.connect(_on_connection_established)
@@ -59,11 +57,51 @@ func _ready() -> void:
 	# Apply theme styling and build role active styles
 	_setup_theme()
 
-	# Default visual state for role buttons
-	_update_role_buttons()
+	if NetworkManager.is_returning_to_lobby:
+		_setup_returning_lobby()
+		NetworkManager.is_returning_to_lobby = false
+	else:
+		_setup_fresh_lobby()
 
-	# Show initial empty player stage
+	_update_role_buttons()
 	_rebuild_player_stage()
+	_load_version()
+
+
+func _setup_fresh_lobby() -> void:
+	start_button.visible = false
+	room_code_container.visible = false
+	leave_button.visible = false
+	status_label.text = "Ready to host or join."
+	role_label.text = "Role: Striker"
+
+
+func _setup_returning_lobby() -> void:
+	_is_host = multiplayer.is_server()
+	_connected_player_count = NetworkManager.role_assignments.size()
+
+	# Recover this peer's selected role
+	var my_id := multiplayer.get_unique_id()
+	_selected_role = NetworkManager.role_assignments.get(my_id, "striker")
+	role_label.text = "Role: %s" % _selected_role.capitalize()
+
+	# Already connected — disable host/join controls
+	host_button.disabled = true
+	join_button.disabled = true
+	address_input.editable = false
+	leave_button.visible = true
+
+	if _is_host:
+		var ip := NetworkManager.get_local_ip()
+		_room_code = NetworkManager.ip_to_room_code(ip)
+		room_code_label.text = "Room Code:  %s" % _room_code
+		room_code_container.visible = true
+		start_button.visible = _connected_player_count >= 2
+		status_label.text = "Players connected: %d" % _connected_player_count
+	else:
+		room_code_container.visible = false
+		start_button.visible = false
+		status_label.text = "Connected. Waiting for host to start..."
 
 
 # ── Theme Setup ───────────────────────────────────────────────────────────────
@@ -249,6 +287,33 @@ func _setup_theme() -> void:
 	role_label.add_theme_color_override("font_color", TEXT_PRIMARY)
 	room_code_label.add_theme_color_override("font_color", TEXT_PRIMARY)
 
+	# -- Leave button (red/danger style) --
+	var leave_normal := StyleBoxFlat.new()
+	leave_normal.bg_color = Color(0.698, 0.133, 0.133, 1)
+	leave_normal.border_color = Color(0.831, 0.200, 0.200, 1)
+	leave_normal.set_border_width_all(1)
+	leave_normal.set_corner_radius_all(6)
+	leave_normal.content_margin_left = 12.0
+	leave_normal.content_margin_top = 6.0
+	leave_normal.content_margin_right = 12.0
+	leave_normal.content_margin_bottom = 6.0
+
+	var leave_hover := StyleBoxFlat.new()
+	leave_hover.bg_color = Color(0.831, 0.200, 0.200, 1)
+	leave_hover.border_color = Color(0.933, 0.300, 0.300, 1)
+	leave_hover.set_border_width_all(1)
+	leave_hover.set_corner_radius_all(6)
+	leave_hover.content_margin_left = 12.0
+	leave_hover.content_margin_top = 6.0
+	leave_hover.content_margin_right = 12.0
+	leave_hover.content_margin_bottom = 6.0
+
+	leave_button.add_theme_stylebox_override("normal", leave_normal)
+	leave_button.add_theme_stylebox_override("hover", leave_hover)
+	leave_button.add_theme_stylebox_override("pressed", btn_pressed)
+	leave_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+	leave_button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+
 
 # ── Player Stage ──────────────────────────────────────────────────────────────
 
@@ -264,7 +329,7 @@ func _rebuild_player_stage() -> void:
 	var player_ids: Array = NetworkManager.role_assignments.keys()
 	for pid in player_ids:
 		var role: String = NetworkManager.role_assignments.get(pid, "striker")
-		var is_host_player := (pid == 1)
+		var is_host_player: bool = (pid == 1)
 		_add_player_slot(pid, role, is_host_player)
 
 	# Fill remaining with empty slots
@@ -410,6 +475,7 @@ func _on_host_pressed() -> void:
 
 	# Register host's role
 	NetworkManager.role_assignments[1] = _selected_role
+	leave_button.visible = true
 	_rebuild_player_stage()
 
 
@@ -453,6 +519,26 @@ func _on_copy_pressed() -> void:
 		copy_button.text = "Copy"
 
 
+func _on_leave_pressed() -> void:
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	NetworkManager.peer = null
+	NetworkManager.role_assignments.clear()
+	NetworkManager.is_returning_to_lobby = false
+
+	# Reset to fresh lobby state
+	_is_host = false
+	_connected_player_count = 0
+	_room_code = ""
+	host_button.disabled = false
+	join_button.disabled = false
+	address_input.editable = true
+	leave_button.visible = false
+	_setup_fresh_lobby()
+	_rebuild_player_stage()
+
+
 func _on_start_pressed() -> void:
 	# Only the host triggers the scene change.
 	if not _is_host:
@@ -472,6 +558,7 @@ func _on_connection_established(_peer_id: int, is_host: bool) -> void:
 	if not is_host:
 		status_label.text = "Connected to server!"
 		_connected_player_count = 1  # We'll get accurate count from player_joined signals.
+		leave_button.visible = true
 		# Send role selection to server
 		_request_role.rpc_id(1, _selected_role)
 	_rebuild_player_stage()
@@ -490,9 +577,20 @@ func _on_player_left(_player_id: int) -> void:
 
 
 func _on_connection_lost(_peer_id: int, reason: String) -> void:
+	if reason == "peer_disconnected":
+		# A single peer left — don't reset the whole lobby.
+		# NetworkManager already erased their role_assignment.
+		if multiplayer.is_server():
+			_connected_player_count = NetworkManager.role_assignments.size()
+			_update_lobby_status()
+			_rebuild_player_stage()
+		return
+
+	# Server disconnected or connection failed — full reset.
 	status_label.text = "Connection lost: %s" % reason
 	start_button.visible = false
 	room_code_container.visible = false
+	leave_button.visible = false
 	_room_code = ""
 	host_button.disabled = false
 	join_button.disabled = false
@@ -503,6 +601,15 @@ func _on_connection_lost(_peer_id: int, reason: String) -> void:
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+func _load_version() -> void:
+	var config := ConfigFile.new()
+	if config.load("res://version.cfg") == OK:
+		var ver: String = config.get_value("version", "version", "0.0.0")
+		version_label.text = "v%s" % ver
+	else:
+		version_label.text = ""
+
 
 func _update_lobby_status() -> void:
 	status_label.text = "Players connected: %d" % _connected_player_count

@@ -21,7 +21,7 @@ func _ready() -> void:
 	# Connect end screen return button (all peers need this).
 	var return_btn = get_node_or_null("UI/HUD/EndScreen/VBoxContainer/ReturnButton")
 	if return_btn:
-		return_btn.pressed.connect(_return_to_lobby)
+		return_btn.pressed.connect(_on_return_button_pressed)
 
 	if not multiplayer.is_server():
 		return
@@ -64,13 +64,36 @@ func next_enemy_id() -> int:
 
 # ── Return to Lobby ─────────────────────────────────────────────────────────
 
+var _returning: bool = false
+
+
+func _on_return_button_pressed() -> void:
+	if multiplayer.is_server():
+		_return_to_lobby()
+	else:
+		_request_early_return.rpc_id(1)
+
+
 func _return_to_lobby() -> void:
-	# Disconnect multiplayer cleanly, then go back to lobby.
-	if multiplayer.multiplayer_peer:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = null
-	NetworkManager.role_assignments.clear()
+	if _returning:
+		return
+	if not multiplayer.is_server():
+		return
+	_returning = true
+	NetworkManager.is_returning_to_lobby = true
+	_return_all_peers_to_lobby.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _return_all_peers_to_lobby() -> void:
+	NetworkManager.is_returning_to_lobby = true
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+
+@rpc("any_peer", "reliable")
+func _request_early_return() -> void:
+	if multiplayer.is_server():
+		_return_to_lobby()
 
 
 # ── Player Spawning ──────────────────────────────────────────────────────────

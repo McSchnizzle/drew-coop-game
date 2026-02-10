@@ -10,6 +10,9 @@ var peer: ENetMultiplayerPeer
 # Role assignments: { peer_id: role_name } — set by lobby, read by game_manager
 var role_assignments: Dictionary = {}
 
+# Set true when returning to lobby from a game (connection stays alive)
+var is_returning_to_lobby: bool = false
+
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +133,7 @@ func _on_peer_connected(id: int) -> void:
 
 func _on_peer_disconnected(id: int) -> void:
 	print("NetworkManager: Peer disconnected — id %d" % id)
+	role_assignments.erase(id)
 	Events.player_left.emit(id)
 	Events.connection_lost.emit(id, "peer_disconnected")
 
@@ -151,3 +155,7 @@ func _on_server_disconnected() -> void:
 	Events.connection_lost.emit(1, "server_disconnected")
 	multiplayer.multiplayer_peer = null
 	peer = null
+	role_assignments.clear()
+	# If we're in the game scene, return to lobby automatically
+	if get_tree().current_scene and get_tree().current_scene.name != "Lobby":
+		get_tree().change_scene_to_file("res://scenes/lobby.tscn")
