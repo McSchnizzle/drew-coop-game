@@ -419,3 +419,29 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_action_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_action_pressed")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "Start Game"
+
+[node name="LeaveButton" type="Button" parent="MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+custom_minimum_size = Vector2(0, 40)
+theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
+theme_override_font_sizes/font_size = 16
+text = "Leave Lobby"
+
+[node name="VersionLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.376, 0.376, 0.439, 1)
+theme_override_font_sizes/font_size = 12
+text = ""
+horizontal_alignment = 2

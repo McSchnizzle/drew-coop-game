@@ -288,8 +288,10 @@ func _show_end_screen(result: String, wave: int, time: float) -> void:
 
 	end_screen.visible = true
 
-	# Auto-return to lobby after 8 seconds.
+	# Auto-return to lobby after 8 seconds (server triggers for all peers).
 	get_tree().create_timer(8.0).timeout.connect(func():
+		if not multiplayer.is_server():
+			return
 		var game_mgr = get_tree().current_scene
 		if is_instance_valid(game_mgr) and game_mgr.has_method("_return_to_lobby"):
 			game_mgr._return_to_lobby()
