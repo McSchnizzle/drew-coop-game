@@ -89,6 +89,11 @@ func _ready() -> void:
 	if player_id == multiplayer.get_unique_id():
 		$Camera2D.make_current()
 
+	# Layer 2 = players. Mask includes layer 1 (walls) + layer 3 (enemies).
+	# Players collide with walls and get pushed by enemies.
+	collision_layer = 2   # Layer 2
+	collision_mask = 5    # Layers 1 + 3 (walls + enemies)
+
 	# Add to players group for enemy targeting.
 	add_to_group("players")
 

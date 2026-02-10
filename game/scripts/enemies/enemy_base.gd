@@ -19,9 +19,10 @@ var _contact_damage_timer: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemies")
-	# Keep collision_layer so projectiles (Area2D) can still detect us,
-	# but clear collision_mask so enemies don't push each other in move_and_slide.
-	collision_mask = 0
+	# Layer 3 = enemies. Mask includes layer 1 (walls) + layer 2 (players).
+	# Enemies push players and stop at walls, but pass through each other.
+	collision_layer = 4   # Layer 3
+	collision_mask = 3    # Layers 1 + 2 (walls + players)
 
 
 func _physics_process(delta: float) -> void:
