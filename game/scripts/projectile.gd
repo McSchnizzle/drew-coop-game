@@ -14,6 +14,8 @@ var _elapsed: float = 0.0
 
 
 func _ready() -> void:
+	# Detect enemies on layer 3 (bit 4).
+	collision_mask = 4
 	# Connect collision signal for server-side hit detection.
 	body_entered.connect(_on_body_entered)
 

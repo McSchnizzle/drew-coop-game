@@ -19,6 +19,8 @@ const STATUS_DURATIONS: Dictionary = {
 
 
 func _ready() -> void:
+	# Detect players on layer 2 (bit 2).
+	collision_mask = 2
 	body_entered.connect(_on_body_entered)
 
 
