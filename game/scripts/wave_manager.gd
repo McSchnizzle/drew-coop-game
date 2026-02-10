@@ -241,12 +241,14 @@ func _notify_wave_cleared(wave_number: int) -> void:
 func _notify_game_won(total_waves: int, time: float) -> void:
 	wave_state_value = WaveState.GAME_WON
 	_update_wave_hud_status("Victory! All %d waves cleared!" % total_waves)
+	_show_end_screen("VICTORY!", total_waves, time)
 
 
 @rpc("authority", "call_local", "reliable")
 func _notify_game_lost(wave: int, time: float) -> void:
 	wave_state_value = WaveState.GAME_OVER
 	_update_wave_hud_status("Game Over - Wave %d" % wave)
+	_show_end_screen("GAME OVER", wave, time)
 
 
 # ── HUD Helpers ──────────────────────────────────────────────────────────────
@@ -267,3 +269,28 @@ func _update_wave_hud_status(status_text: String) -> void:
 	var wave_label = hud.get_node_or_null("WaveLabel") as Label
 	if wave_label:
 		wave_label.text = status_text
+
+
+func _show_end_screen(result: String, wave: int, time: float) -> void:
+	var hud = get_tree().current_scene.get_node_or_null("UI/HUD")
+	if not hud:
+		return
+	var end_screen = hud.get_node_or_null("EndScreen")
+	if not end_screen:
+		return
+
+	var result_label = end_screen.get_node_or_null("VBoxContainer/ResultLabel") as Label
+	var stats_label = end_screen.get_node_or_null("VBoxContainer/StatsLabel") as Label
+	if result_label:
+		result_label.text = result
+	if stats_label:
+		stats_label.text = "Wave %d  |  Time: %ds" % [wave, int(time)]
+
+	end_screen.visible = true
+
+	# Auto-return to lobby after 8 seconds.
+	get_tree().create_timer(8.0).timeout.connect(func():
+		var game_mgr = get_tree().current_scene
+		if is_instance_valid(game_mgr) and game_mgr.has_method("_return_to_lobby"):
+			game_mgr._return_to_lobby()
+	)

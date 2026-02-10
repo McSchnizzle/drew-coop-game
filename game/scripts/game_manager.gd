@@ -13,19 +13,16 @@ const PLAYER_SPAWN_POSITIONS: Array[Vector2] = [
 	Vector2(500, 500),
 ]
 
-# Colors: peer 1 = Blue, others = White (Drew's preference).
-const COLOR_HOST := Color(0.2, 0.4, 1.0, 1.0)   # Blue
-const COLOR_CLIENT := Color(1.0, 1.0, 1.0, 1.0)  # White
-
 # Enemy ID counter (starts at 1000 per entity_schema.md).
 var _next_enemy_id: int = 1000
 
-# Wave manager (server creates at runtime).
-var _wave_manager: Node = null
-
-
 
 func _ready() -> void:
+	# Connect end screen return button (all peers need this).
+	var return_btn = get_node_or_null("UI/HUD/EndScreen/VBoxContainer/ReturnButton")
+	if return_btn:
+		return_btn.pressed.connect(_return_to_lobby)
+
 	if not multiplayer.is_server():
 		return
 
@@ -40,8 +37,8 @@ func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 
-	# Create and start the wave system.
-	_setup_wave_manager()
+	# Start waves (WaveManager is a scene node in game.tscn, exists on all peers).
+	$WaveManager.start_waves()
 
 
 func _on_peer_connected(id: int) -> void:
@@ -65,6 +62,17 @@ func next_enemy_id() -> int:
 	return id
 
 
+# ── Return to Lobby ─────────────────────────────────────────────────────────
+
+func _return_to_lobby() -> void:
+	# Disconnect multiplayer cleanly, then go back to lobby.
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	NetworkManager.role_assignments.clear()
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+
 # ── Player Spawning ──────────────────────────────────────────────────────────
 
 func _spawn_player(peer_id: int) -> void:
@@ -80,22 +88,16 @@ func _spawn_player(peer_id: int) -> void:
 
 	player.position = PLAYER_SPAWN_POSITIONS[spawn_index]
 
-	# Set player color based on role or host/client default.
 	var role: String = NetworkManager.role_assignments.get(peer_id, "striker")
-	var color_rect = player.get_node("ColorRect") as ColorRect
-	if color_rect:
-		if role == "engineer":
-			color_rect.color = Color(0.2, 0.8, 0.3, 1.0)
-		elif role == "striker":
-			color_rect.color = Color(1.0, 0.6, 0.1, 1.0)
-		else:
-			color_rect.color = COLOR_HOST if peer_id == 1 else COLOR_CLIENT
 
 	# Add to the Players container (MultiplayerSpawner handles replication).
 	$Players.add_child(player, true)
 
 	# Set player_id AFTER adding to tree so the setter can find $InputSync.
 	player.player_id = peer_id
+
+	# Set role color + label on ALL peers via RPC (must be after add_child so node exists).
+	player._set_role_color.rpc(role)
 
 	# Set up abilities based on role
 	_setup_player_abilities(player, role)
@@ -131,14 +133,3 @@ func _setup_player_abilities(player: CharacterBody2D, role: String) -> void:
 	elif role == "engineer":
 		super_node.set_script(load("res://scripts/abilities/super_healing_pulse.gd"))
 	ability_mgr.add_child(super_node)
-
-
-# ── Wave System Setup ────────────────────────────────────────────────────────
-
-func _setup_wave_manager() -> void:
-	var wave_manager_script = load("res://scripts/wave_manager.gd")
-	_wave_manager = Node.new()
-	_wave_manager.name = "WaveManager"
-	_wave_manager.set_script(wave_manager_script)
-	add_child(_wave_manager)
-	_wave_manager.start_waves()

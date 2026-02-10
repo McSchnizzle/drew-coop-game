@@ -19,9 +19,9 @@ var _contact_damage_timer: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemies")
-	var hurtbox = get_node_or_null("Hurtbox")
-	if hurtbox:
-		hurtbox.body_entered.connect(_on_hurtbox_body_entered)
+	# Keep collision_layer so projectiles (Area2D) can still detect us,
+	# but clear collision_mask so enemies don't push each other in move_and_slide.
+	collision_mask = 0
 
 
 func _physics_process(delta: float) -> void:
@@ -95,9 +95,25 @@ func take_damage(amount: int, from_player_id: int) -> void:
 	if has_status("exposed"):
 		amount *= 2
 	health -= amount
+	_show_hit_flash.rpc()
 	if health <= 0:
 		health = 0
 		_die(from_player_id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_hit_flash() -> void:
+	# Brief white flash so players see damage landing.
+	var sprite = get_node_or_null("ColorRect")
+	if not sprite:
+		return
+	var original_color: Color = sprite.color
+	sprite.color = Color(1.0, 1.0, 1.0, 1.0)
+	# Guard against the node being freed before the timer fires (e.g. enemy dies).
+	get_tree().create_timer(0.1).timeout.connect(func():
+		if is_instance_valid(sprite):
+			sprite.color = original_color
+	)
 
 
 func _die(killed_by: int) -> void:
@@ -153,25 +169,18 @@ func apply_scaling(health_scale: float, speed_scale: float) -> void:
 func _check_contact_damage() -> void:
 	if _contact_damage_timer > 0.0:
 		return
-	var hurtbox = get_node_or_null("Hurtbox")
-	if not hurtbox:
-		return
-	for body in hurtbox.get_overlapping_bodies():
-		if not body.is_in_group("players") or not body.has_method("take_damage"):
+	# Distance-based check — Area2D overlap fails because CharacterBody2D
+	# physics pushes bodies apart so they never truly overlap.
+	var players := get_tree().get_nodes_in_group("players")
+	for player in players:
+		if not player is Node2D or not player.visible:
 			continue
-		if body.get("_is_downed") and body._is_downed:
+		if player.get("_is_downed") and player._is_downed:
 			continue
-		if body.get("_is_alive") != null and not body._is_alive:
+		if player.get("_is_alive") != null and not player._is_alive:
 			continue
-		body.take_damage(contact_damage)
-		_contact_damage_timer = CONTACT_DAMAGE_COOLDOWN
-		break
-
-
-func _on_hurtbox_body_entered(body: Node) -> void:
-	if not multiplayer.is_server():
-		return
-	if body.is_in_group("players") and body.has_method("take_damage"):
-		if _contact_damage_timer <= 0.0:
-			body.take_damage(contact_damage)
+		var dist := global_position.distance_to(player.global_position)
+		if dist <= 50.0 and player.has_method("take_damage"):
+			player.take_damage(contact_damage)
 			_contact_damage_timer = CONTACT_DAMAGE_COOLDOWN
+			break

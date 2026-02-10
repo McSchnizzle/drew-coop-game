@@ -22,15 +22,5 @@ func activate(player_pos: Vector2, _facing: int) -> void:
 				enemy.reveal_from_scan()
 
 	Events.ability_activated.emit(player_id, "weak_point_scan", player_pos, Vector2.ZERO)
-	_show_scan_visual.rpc(player_pos)
-
-
-@rpc("authority", "call_local", "reliable")
-func _show_scan_visual(center: Vector2) -> void:
-	# Simple expanding circle visual -- colored rectangle as placeholder
-	var visual := ColorRect.new()
-	visual.size = Vector2(SCAN_RADIUS * 2, SCAN_RADIUS * 2)
-	visual.position = center - Vector2(SCAN_RADIUS, SCAN_RADIUS)
-	visual.color = Color(1.0, 1.0, 0.0, 0.15)
-	get_tree().current_scene.add_child(visual)
-	get_tree().create_timer(0.5).timeout.connect(visual.queue_free)
+	# Show visual via player's RPC (player node exists on all peers).
+	player._show_scan_visual.rpc(player_pos, SCAN_RADIUS)

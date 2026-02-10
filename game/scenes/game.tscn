@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://game001"]
+[gd_scene load_steps=15 format=3 uid="uid://game001"]
 
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -10,8 +10,15 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_dependency_hell.tscn" id="8_enemy_dh"]
 [ext_resource type="PackedScene" path="res://scenes/projectile_enemy.tscn" id="9_proj_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/turret.tscn" id="10_turret"]
+[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="11_wave"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
+size = Vector2(1200, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(32, 700)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ceiling"]
 size = Vector2(1200, 32)
 
 [node name="Game" type="Node2D"]
@@ -32,6 +39,45 @@ offset_right = 600.0
 offset_bottom = 16.0
 color = Color(0.5, 0.5, 0.5, 1)
 
+[node name="LeftWall" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 250)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/LeftWall"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="ColorRect" type="ColorRect" parent="Level/LeftWall"]
+offset_left = -16.0
+offset_top = -350.0
+offset_right = 16.0
+offset_bottom = 350.0
+color = Color(0.4, 0.4, 0.4, 1)
+
+[node name="RightWall" type="StaticBody2D" parent="Level"]
+position = Vector2(1200, 250)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/RightWall"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="ColorRect" type="ColorRect" parent="Level/RightWall"]
+offset_left = -16.0
+offset_top = -350.0
+offset_right = 16.0
+offset_bottom = 350.0
+color = Color(0.4, 0.4, 0.4, 1)
+
+[node name="Ceiling" type="StaticBody2D" parent="Level"]
+position = Vector2(600, -100)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Ceiling"]
+shape = SubResource("RectangleShape2D_ceiling")
+
+[node name="ColorRect" type="ColorRect" parent="Level/Ceiling"]
+offset_left = -600.0
+offset_top = -16.0
+offset_right = 600.0
+offset_bottom = 16.0
+color = Color(0.4, 0.4, 0.4, 1)
+
 [node name="Players" type="Node2D" parent="."]
 
 [node name="Enemies" type="Node2D" parent="."]
@@ -39,6 +85,9 @@ color = Color(0.5, 0.5, 0.5, 1)
 [node name="Projectiles" type="Node2D" parent="."]
 
 [node name="Effects" type="Node2D" parent="."]
+
+[node name="WaveManager" type="Node" parent="."]
+script = ExtResource("11_wave")
 
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
@@ -105,6 +154,54 @@ offset_top = 128.0
 offset_right = 200.0
 offset_bottom = 152.0
 text = "Super: 0%"
+
+[node name="EndScreen" type="Panel" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -120.0
+offset_right = 200.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/EndScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="ResultLabel" type="Label" parent="UI/HUD/EndScreen/VBoxContainer"]
+layout_mode = 2
+text = "GAME OVER"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StatsLabel" type="Label" parent="UI/HUD/EndScreen/VBoxContainer"]
+layout_mode = 2
+text = "Wave 1 | Time: 0s"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="UI/HUD/EndScreen/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+
+[node name="ReturnButton" type="Button" parent="UI/HUD/EndScreen/VBoxContainer"]
+layout_mode = 2
+text = "Return to Lobby"
 
 [node name="ControlsLabel" type="Label" parent="UI/HUD"]
 layout_mode = 1
