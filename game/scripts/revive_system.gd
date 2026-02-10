@@ -41,7 +41,7 @@ func _try_start_revive(rescuer: CharacterBody2D) -> void:
 	_is_reviving = true
 	rescuer._is_reviving_someone = true
 	Events.revive_started.emit(rescuer.player_id, target.player_id)
-	_notify_revive_progress.rpc(rescuer.player_id, target.player_id, 0.0)
+	_notify_revive_progress.rpc(target.player_id, 0.0)
 
 
 func _continue_revive(rescuer: CharacterBody2D, delta: float) -> void:
@@ -55,7 +55,7 @@ func _continue_revive(rescuer: CharacterBody2D, delta: float) -> void:
 	_revive_progress += delta
 	var progress_pct := _revive_progress / REVIVE_TIME
 	Events.revive_progress.emit(rescuer.player_id, _revive_target.player_id, progress_pct)
-	_notify_revive_progress.rpc(rescuer.player_id, _revive_target.player_id, progress_pct)
+	_notify_revive_progress.rpc(_revive_target.player_id, progress_pct)
 
 	if _revive_progress >= REVIVE_TIME:
 		_complete_revive(rescuer)
@@ -76,17 +76,14 @@ func _complete_revive(rescuer: CharacterBody2D) -> void:
 	if collision:
 		collision.set_deferred("disabled", false)
 
-	# Restore color based on role
+	# Restore color on ALL peers via RPC
 	var ability_mgr = _revive_target.get_node_or_null("AbilityManager")
-	var color_rect = _revive_target.get_node_or_null("ColorRect") as ColorRect
-	if color_rect and ability_mgr:
-		if ability_mgr.role == "engineer":
-			color_rect.color = Color(0.2, 0.8, 0.3, 1.0)
-		else:
-			color_rect.color = Color(1.0, 0.6, 0.1, 1.0)
+	var role: String = ability_mgr.role if ability_mgr else "striker"
+	_revive_target._show_revived_visual.rpc(role)
 
 	Events.revive_completed.emit(rescuer.player_id, _revive_target.player_id)
-	_notify_revive_progress.rpc(rescuer.player_id, _revive_target.player_id, 1.0)
+	# Send progress=1.0 so clients hide the bar, then -1.0 to clean up
+	_notify_revive_progress.rpc(_revive_target.player_id, -1.0)
 	print("ReviveSystem: Player %d revived player %d" % [rescuer.player_id, _revive_target.player_id])
 
 	rescuer._is_reviving_someone = false
@@ -99,6 +96,7 @@ func _cancel_revive() -> void:
 	var player = get_parent()
 	if _is_reviving and is_instance_valid(_revive_target):
 		Events.revive_cancelled.emit(player.player_id, _revive_target.player_id)
+		_notify_revive_progress.rpc(_revive_target.player_id, -1.0)
 	player._is_reviving_someone = false
 	_revive_target = null
 	_revive_progress = 0.0
@@ -124,6 +122,35 @@ func _find_downed_player_in_range(rescuer: CharacterBody2D) -> CharacterBody2D:
 
 
 @rpc("authority", "call_local", "unreliable")
-func _notify_revive_progress(rescuer_id: int, target_id: int, progress: float) -> void:
-	# Clients can use this to display a revive progress bar
-	pass
+func _notify_revive_progress(target_id: int, progress: float) -> void:
+	# Find the target player and show/update a progress bar above them.
+	var players := get_tree().get_nodes_in_group("players")
+	for player in players:
+		if player.player_id == target_id:
+			_update_revive_bar(player, progress)
+			break
+
+
+func _update_revive_bar(target: CharacterBody2D, progress: float) -> void:
+	if not is_instance_valid(target):
+		return
+	var bar = target.get_node_or_null("ReviveBar")
+
+	# progress < 0 means cancel/complete — remove the bar.
+	if progress < 0.0:
+		if bar:
+			bar.queue_free()
+		return
+
+	# Create bar if it doesn't exist.
+	if not bar:
+		bar = ProgressBar.new()
+		bar.name = "ReviveBar"
+		bar.size = Vector2(50, 8)
+		bar.position = Vector2(-25, -50)
+		bar.min_value = 0.0
+		bar.max_value = 1.0
+		bar.show_percentage = false
+		target.add_child(bar)
+
+	bar.value = progress

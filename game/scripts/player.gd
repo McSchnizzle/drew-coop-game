@@ -26,7 +26,7 @@ const JUMP_FATIGUE_PENALTY: float = 0.25 # 25% reduction per fatigued jump
 
 # Melee
 const MELEE_RANGE: float = 60.0          # How far melee reaches
-const MELEE_DAMAGE: int = 2              # Damage per melee hit
+const MELEE_DAMAGE: int = 3              # Damage per melee hit
 const MELEE_COOLDOWN: float = 0.5        # Seconds between melee attacks
 
 # Projectile scene path
@@ -84,14 +84,6 @@ func _ready() -> void:
 	# since @export values aren't replicated to clients by the spawner.
 	if name.is_valid_int():
 		player_id = name.to_int()
-
-	# Set player color locally: host (id 1) = Blue, everyone else = White.
-	var color_rect = $ColorRect as ColorRect
-	if color_rect:
-		if player_id == 1:
-			color_rect.color = Color(0.2, 0.4, 1.0, 1.0)
-		else:
-			color_rect.color = Color(1.0, 1.0, 1.0, 1.0)
 
 	# Only the local player gets the camera.
 	if player_id == multiplayer.get_unique_id():
@@ -319,6 +311,11 @@ func _do_melee() -> void:
 	_show_melee_visual.rpc(_facing)
 
 	# Hit detection (server-only — we're inside _server_process).
+	var melee_ability_mgr = get_node_or_null("AbilityManager")
+	var melee_dmg := MELEE_DAMAGE
+	if melee_ability_mgr:
+		melee_dmg = int(ceil(MELEE_DAMAGE * melee_ability_mgr.get_damage_multiplier()))
+
 	var enemies := get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
 		if not enemy is Node2D:
@@ -328,9 +325,8 @@ func _do_melee() -> void:
 		var in_front := (to_enemy.x * _facing) > 0.0
 		if in_front and to_enemy.length() <= MELEE_RANGE:
 			if enemy.has_method("take_damage"):
-				enemy.take_damage(MELEE_DAMAGE, player_id)
+				enemy.take_damage(melee_dmg, player_id)
 				# Charge super for melee hits
-				var melee_ability_mgr = get_node_or_null("AbilityManager")
 				if melee_ability_mgr:
 					melee_ability_mgr.add_super_charge(melee_ability_mgr.SUPER_CHARGE_PER_MELEE_HIT)
 
@@ -346,7 +342,53 @@ func _show_melee_visual(facing: int) -> void:
 		swing.position.x = -80.0 - 8.0
 	add_child(swing)
 	# Flash for 0.3 seconds so it's noticeable.
-	get_tree().create_timer(0.3).timeout.connect(swing.queue_free)
+	get_tree().create_timer(0.3).timeout.connect(func():
+		if is_instance_valid(swing):
+			swing.queue_free()
+	)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_overdrive_visual(duration: float) -> void:
+	# Bright gold border around the player for the duration of Overdrive.
+	var visual := ColorRect.new()
+	visual.size = Vector2(44, 76)
+	visual.position = Vector2(-22, -38)
+	visual.color = Color(1.0, 0.85, 0.0, 0.8)
+	visual.z_index = -1  # Behind the player sprite
+	add_child(visual)
+	get_tree().create_timer(duration).timeout.connect(func():
+		if is_instance_valid(visual):
+			visual.queue_free()
+	)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_healing_visual() -> void:
+	# Brief green flash when healed.
+	var visual := ColorRect.new()
+	visual.size = Vector2(40, 72)
+	visual.position = Vector2(-20, -36)
+	visual.color = Color(0.2, 1.0, 0.3, 0.4)
+	add_child(visual)
+	get_tree().create_timer(0.5).timeout.connect(func():
+		if is_instance_valid(visual):
+			visual.queue_free()
+	)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_scan_visual(center: Vector2, radius: float) -> void:
+	# Yellow translucent area showing the scan zone.
+	var visual := ColorRect.new()
+	visual.size = Vector2(radius * 2, radius * 2)
+	visual.position = center - Vector2(radius, radius)
+	visual.color = Color(1.0, 1.0, 0.0, 0.15)
+	get_tree().current_scene.add_child(visual)
+	get_tree().create_timer(0.5).timeout.connect(func():
+		if is_instance_valid(visual):
+			visual.queue_free()
+	)
 
 
 # ── HUD Updates (runs on local player only) ─────────────────────────────────
@@ -383,9 +425,11 @@ func _update_hud() -> void:
 	var super_label = hud.get_node_or_null("SuperLabel") as Label
 	if super_label:
 		if super_charge >= 100.0:
-			super_label.text = "Super: READY!"
+			super_label.text = ">> Super: READY! (E) <<"
+			super_label.modulate = Color(1.0, 1.0, 0.0)  # Yellow when ready
 		else:
 			super_label.text = "Super: %d%%" % int(super_charge)
+			super_label.modulate = Color(1.0, 1.0, 1.0)  # White normally
 
 
 # ── Health / Damage ──────────────────────────────────────────────────────────
@@ -408,15 +452,38 @@ func die() -> void:
 	velocity = Vector2.ZERO
 	Events.player_downed.emit(player_id, global_position)
 
-	# Disable collision so enemies walk through
+	# Disable collision so enemies walk through (server-only, affects physics)
 	var collision = get_node_or_null("CollisionShape2D")
 	if collision:
 		collision.set_deferred("disabled", true)
 
-	# Visual: gray color
+	# Visual: gray color on ALL peers
+	_show_downed_visual.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_downed_visual() -> void:
 	var color_rect = get_node_or_null("ColorRect") as ColorRect
 	if color_rect:
 		color_rect.color = Color(0.5, 0.5, 0.5, 1.0)
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_role_color(role: String) -> void:
+	var color_rect = get_node_or_null("ColorRect") as ColorRect
+	if color_rect:
+		if role == "engineer":
+			color_rect.color = Color(0.2, 0.8, 0.3, 1.0)
+		else:
+			color_rect.color = Color(1.0, 0.6, 0.1, 1.0)
+	var role_label = get_node_or_null("RoleLabel") as Label
+	if role_label:
+		role_label.text = "S" if role == "striker" else "E"
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_revived_visual(role: String) -> void:
+	_set_role_color(role)
 
 
 func _process_bleedout(delta: float) -> void:

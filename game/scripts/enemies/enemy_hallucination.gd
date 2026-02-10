@@ -77,6 +77,7 @@ func take_damage(amount: int, from_player_id: int) -> void:
 	if has_status("exposed"):
 		amount *= 2
 	health -= amount
+	_show_hit_flash.rpc()
 	if health <= 0:
 		health = 0
 		_die(from_player_id)
@@ -96,6 +97,9 @@ func _update_visual_disguised() -> void:
 		color_rect.offset_right = half.x
 		color_rect.offset_bottom = half.y
 		color_rect.color = COLOR_DISGUISED
+	var label = get_node_or_null("TypeLabel") as Label
+	if label:
+		label.text = "+"
 
 
 func _update_visual_revealed() -> void:
@@ -107,6 +111,13 @@ func _update_visual_revealed() -> void:
 		color_rect.offset_right = half.x
 		color_rect.offset_bottom = half.y
 		color_rect.color = COLOR_REVEALED
+	var label = get_node_or_null("TypeLabel") as Label
+	if label:
+		label.text = "!"
+		label.offset_left = -half.x
+		label.offset_top = -half.y
+		label.offset_right = half.x
+		label.offset_bottom = half.y
 
 	# Update collision shapes to revealed size
 	var body_shape = get_node_or_null("CollisionShape2D")

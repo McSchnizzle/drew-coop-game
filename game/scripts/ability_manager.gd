@@ -41,11 +41,17 @@ func _physics_process(delta: float) -> void:
 				player.ability_cooldown = ability_node.COOLDOWN
 
 	# Super activation
-	if player.input_super and player.super_charge >= SUPER_CHARGE_MAX:
-		var super_node = get_node_or_null("Super")
-		if super_node:
-			super_node.activate(player)
-			player.super_charge = 0.0
+	if player.input_super:
+		if player.super_charge >= SUPER_CHARGE_MAX:
+			var super_node = get_node_or_null("Super")
+			if super_node:
+				print("AbilityManager: Super activated for player %d!" % player.player_id)
+				super_node.activate(player)
+				player.super_charge = 0.0
+			else:
+				print("AbilityManager: No Super node found for player %d" % player.player_id)
+		else:
+			print("AbilityManager: Super not ready — charge %.0f/%.0f" % [player.super_charge, SUPER_CHARGE_MAX])
 
 	# Consume one-shot inputs after reading them (parent already ran _server_process)
 	player.input_ability = false

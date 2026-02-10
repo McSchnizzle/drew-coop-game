@@ -32,6 +32,15 @@ offset_right = 28.0
 offset_bottom = 28.0
 color = Color(0.15, 0.15, 0.6, 1)
 
+[node name="TypeLabel" type="Label" parent="."]
+offset_left = -28.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = 28.0
+text = "DH"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="Hurtbox" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
