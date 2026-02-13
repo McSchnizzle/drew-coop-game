@@ -33,7 +33,7 @@ func _apply_tier_stats() -> void:
 	var sprite = get_node_or_null("Sprite2D") as Sprite2D
 	if sprite:
 		# Scale sprite to tier size (base texture is 48x48)
-		var tex_size := sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
+		var tex_size: Vector2 = sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
 		sprite.scale = TIER_SIZE[size_tier] / tex_size
 		sprite.modulate = TIER_COLORS[size_tier]
 

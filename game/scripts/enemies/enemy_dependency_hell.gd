@@ -21,7 +21,7 @@ func _ready() -> void:
 	# Set visual - scale sprite to match dependency hell hitbox size
 	var sprite = get_node_or_null("Sprite2D") as Sprite2D
 	if sprite:
-		var tex_size := sprite.texture.get_size() if sprite.texture else Vector2(56, 56)
+		var tex_size: Vector2 = sprite.texture.get_size() if sprite.texture else Vector2(56, 56)
 		sprite.scale = DH_SIZE / tex_size
 
 

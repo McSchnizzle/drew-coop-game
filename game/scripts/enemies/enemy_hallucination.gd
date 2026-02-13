@@ -92,7 +92,7 @@ func _update_visual_disguised() -> void:
 	var sprite = get_node_or_null("Sprite2D") as Sprite2D
 	if sprite:
 		# Scale sprite to disguised size (base texture is 48x48)
-		var tex_size := sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
+		var tex_size: Vector2 = sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
 		sprite.scale = HALL_DISGUISED_SIZE / tex_size
 		sprite.modulate = COLOR_DISGUISED
 	var label = get_node_or_null("TypeLabel") as Label
@@ -105,7 +105,7 @@ func _update_visual_revealed() -> void:
 	var sprite = get_node_or_null("Sprite2D") as Sprite2D
 	if sprite:
 		# Scale sprite to revealed size (base texture is 48x48)
-		var tex_size := sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
+		var tex_size: Vector2 = sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
 		sprite.scale = HALL_REVEALED_SIZE / tex_size
 		sprite.modulate = COLOR_REVEALED
 	var label = get_node_or_null("TypeLabel") as Label
