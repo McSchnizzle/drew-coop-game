@@ -25,15 +25,11 @@ func _ready() -> void:
 	contact_damage = CR_PROJ_DAMAGE
 	_current_state = State.IDLE
 
-	# Set visual
-	var half := CR_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR
+	# Set visual - scale sprite to match context rot hitbox size
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		var tex_size := sprite.texture.get_size() if sprite.texture else Vector2(48, 48)
+		sprite.scale = CR_SIZE / tex_size
 
 
 func _state_chase(delta: float) -> void:

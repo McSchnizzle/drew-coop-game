@@ -105,15 +105,15 @@ func take_damage(amount: int, from_player_id: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _show_hit_flash() -> void:
 	# Brief white flash so players see damage landing.
-	var sprite = get_node_or_null("ColorRect")
+	var sprite = get_node_or_null("Sprite2D")
 	if not sprite:
 		return
-	var original_color: Color = sprite.color
-	sprite.color = Color(1.0, 1.0, 1.0, 1.0)
+	var original_modulate: Color = sprite.modulate
+	sprite.modulate = Color(5.0, 5.0, 5.0, 1.0)
 	# Guard against the node being freed before the timer fires (e.g. enemy dies).
 	get_tree().create_timer(0.1).timeout.connect(func():
 		if is_instance_valid(sprite):
-			sprite.color = original_color
+			sprite.modulate = original_modulate
 	)
 
 
