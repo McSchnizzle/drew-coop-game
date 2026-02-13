@@ -98,7 +98,7 @@ func _setup_returning_lobby() -> void:
 		_room_code = NetworkManager.ip_to_room_code(ip)
 		room_code_label.text = "Room Code:  %s  (%s)" % [_room_code, ip]
 		room_code_container.visible = true
-		start_button.visible = _connected_player_count >= 2
+		start_button.visible = _connected_player_count >= 1
 		status_label.text = "Players connected: %d" % _connected_player_count
 	else:
 		room_code_container.visible = false
@@ -427,6 +427,7 @@ func _on_host_pressed() -> void:
 	room_code_label.text = "Room Code:  %s  (%s)" % [_room_code, ip]
 	room_code_container.visible = true
 	status_label.text = "Waiting for players..."
+	start_button.visible = true
 
 	# Hide host/join controls to keep panel compact
 	host_button.visible = false
@@ -579,4 +580,4 @@ func _load_version() -> void:
 func _update_lobby_status() -> void:
 	status_label.text = "Players connected: %d" % _connected_player_count
 	# Show start button only for the host when at least 2 players are present.
-	start_button.visible = _is_host and _connected_player_count >= 2
+	start_button.visible = _is_host and _connected_player_count >= 1

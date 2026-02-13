@@ -15,6 +15,11 @@ const TIER_COLORS: Array[Color] = [
 	Color(0.9, 0.4, 0.4),    # Light Red (T1)
 	Color(0.9, 0.6, 0.6),    # Pink (T2)
 ]
+const TIER_TEXTURES: Array[String] = [
+	"res://assets/sprites/enemies/enemy_merge_conflict_t0.png",
+	"res://assets/sprites/enemies/enemy_merge_conflict_t1.png",
+	"res://assets/sprites/enemies/enemy_merge_conflict_t2.png",
+]
 
 var size_tier: int = 0
 
@@ -29,15 +34,11 @@ func _apply_tier_stats() -> void:
 	speed = TIER_SPEED[size_tier]
 	contact_damage = TIER_CONTACT_DMG[size_tier]
 
-	# Update visual size
-	var half := TIER_SIZE[size_tier] / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = TIER_COLORS[size_tier]
+	# Update visual - swap to tier-specific neon texture
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.texture = load(TIER_TEXTURES[size_tier])
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 	# Update collision shapes
 	var body_shape = get_node_or_null("CollisionShape2D")

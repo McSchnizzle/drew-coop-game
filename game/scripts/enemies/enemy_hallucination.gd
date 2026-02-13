@@ -13,6 +13,8 @@ const HALL_SCAN_STUN: float = 2.0
 
 const COLOR_DISGUISED: Color = Color(0.2, 0.9, 0.2)
 const COLOR_REVEALED: Color = Color(0.6, 0.1, 0.8)
+const TEX_DISGUISED: String = "res://assets/sprites/enemies/enemy_hallucination_disguised.png"
+const TEX_REVEALED: String = "res://assets/sprites/enemies/enemy_hallucination_revealed.png"
 
 var is_disguised: bool = true
 var _reveal_timer: float = 0.0
@@ -89,14 +91,10 @@ func reveal_from_scan() -> void:
 
 
 func _update_visual_disguised() -> void:
-	var half := HALL_DISGUISED_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR_DISGUISED
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.texture = load(TEX_DISGUISED)
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var label = get_node_or_null("TypeLabel") as Label
 	if label:
 		label.text = "+"
@@ -104,13 +102,10 @@ func _update_visual_disguised() -> void:
 
 func _update_visual_revealed() -> void:
 	var half := HALL_REVEALED_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR_REVEALED
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.texture = load(TEX_REVEALED)
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var label = get_node_or_null("TypeLabel") as Label
 	if label:
 		label.text = "!"
