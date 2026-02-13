@@ -96,7 +96,7 @@ func _setup_returning_lobby() -> void:
 	if _is_host:
 		var ip := NetworkManager.get_local_ip()
 		_room_code = NetworkManager.ip_to_room_code(ip)
-		room_code_label.text = "Room Code:  %s" % _room_code
+		room_code_label.text = "Room Code:  %s  (%s)" % [_room_code, ip]
 		room_code_container.visible = true
 		start_button.visible = _connected_player_count >= 2
 		status_label.text = "Players connected: %d" % _connected_player_count
@@ -424,7 +424,7 @@ func _on_host_pressed() -> void:
 	_connected_player_count = 1  # Host counts as first player.
 	var ip := NetworkManager.get_local_ip()
 	_room_code = NetworkManager.ip_to_room_code(ip)
-	room_code_label.text = "Room Code:  %s" % _room_code
+	room_code_label.text = "Room Code:  %s  (%s)" % [_room_code, ip]
 	room_code_container.visible = true
 	status_label.text = "Waiting for players..."
 
