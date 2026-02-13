@@ -88,10 +88,9 @@ func _setup_returning_lobby() -> void:
 	if not my_name.is_empty():
 		name_input.text = my_name
 
-	# Already connected — disable host/join controls
-	host_button.disabled = true
-	join_button.disabled = true
-	address_input.editable = false
+	# Already connected — hide host/join controls to keep panel compact
+	host_button.visible = false
+	join_button.get_parent().visible = false
 	leave_button.visible = true
 
 	if _is_host:
@@ -429,10 +428,9 @@ func _on_host_pressed() -> void:
 	room_code_container.visible = true
 	status_label.text = "Waiting for players..."
 
-	# Disable host/join buttons once hosting.
-	host_button.disabled = true
-	join_button.disabled = true
-	address_input.editable = false
+	# Hide host/join controls to keep panel compact
+	host_button.visible = false
+	join_button.get_parent().visible = false
 
 	# Register host's role and name
 	NetworkManager.role_assignments[1] = _selected_role
@@ -471,9 +469,8 @@ func _on_join_pressed() -> void:
 		return
 
 	status_label.text = "Connecting..."
-	host_button.disabled = true
-	join_button.disabled = true
-	address_input.editable = false
+	host_button.visible = false
+	join_button.get_parent().visible = false
 
 
 func _on_copy_pressed() -> void:
@@ -497,9 +494,8 @@ func _on_leave_pressed() -> void:
 	_is_host = false
 	_connected_player_count = 0
 	_room_code = ""
-	host_button.disabled = false
-	join_button.disabled = false
-	address_input.editable = true
+	host_button.visible = true
+	join_button.get_parent().visible = true
 	leave_button.visible = false
 	_setup_fresh_lobby()
 	_rebuild_player_stage()
@@ -562,9 +558,8 @@ func _on_connection_lost(_peer_id: int, reason: String) -> void:
 	room_code_container.visible = false
 	leave_button.visible = false
 	_room_code = ""
-	host_button.disabled = false
-	join_button.disabled = false
-	address_input.editable = true
+	host_button.visible = true
+	join_button.get_parent().visible = true
 	_connected_player_count = 0
 	_is_host = false
 	_rebuild_player_stage()
