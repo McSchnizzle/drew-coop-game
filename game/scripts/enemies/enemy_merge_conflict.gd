@@ -29,15 +29,13 @@ func _apply_tier_stats() -> void:
 	speed = TIER_SPEED[size_tier]
 	contact_damage = TIER_CONTACT_DMG[size_tier]
 
-	# Update visual size
-	var half := TIER_SIZE[size_tier] / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = TIER_COLORS[size_tier]
+	# Update visual size via Sprite2D scale and tint per tier
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		var base_size := Vector2(48, 48)  # Original sprite is 48x48
+		var target_size := TIER_SIZE[size_tier]
+		sprite.scale = target_size / base_size
+		sprite.modulate = TIER_COLORS[size_tier]
 
 	# Update collision shapes
 	var body_shape = get_node_or_null("CollisionShape2D")

@@ -89,14 +89,12 @@ func reveal_from_scan() -> void:
 
 
 func _update_visual_disguised() -> void:
-	var half := HALL_DISGUISED_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR_DISGUISED
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		var tex_disguised = load("res://assets/enemies/enemy_hallucination_disguised.png")
+		if tex_disguised:
+			sprite.texture = tex_disguised
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var label = get_node_or_null("TypeLabel") as Label
 	if label:
 		label.text = "+"
@@ -104,13 +102,12 @@ func _update_visual_disguised() -> void:
 
 func _update_visual_revealed() -> void:
 	var half := HALL_REVEALED_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR_REVEALED
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		var tex_revealed = load("res://assets/enemies/enemy_hallucination_revealed.png")
+		if tex_revealed:
+			sprite.texture = tex_revealed
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var label = get_node_or_null("TypeLabel") as Label
 	if label:
 		label.text = "!"

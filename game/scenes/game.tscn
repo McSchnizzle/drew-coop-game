@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://game001"]
+[gd_scene load_steps=21 format=3 uid="uid://game001"]
 
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -11,6 +11,12 @@
 [ext_resource type="PackedScene" path="res://scenes/projectile_enemy.tscn" id="9_proj_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/turret.tscn" id="10_turret"]
 [ext_resource type="Script" path="res://scripts/wave_manager.gd" id="11_wave"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_sky.png" id="12_bg_sky"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_mountains.png" id="13_bg_mountains"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_trees.png" id="14_bg_trees"]
+[ext_resource type="Texture2D" path="res://assets/tiles/ground.png" id="15_tile_ground"]
+[ext_resource type="Texture2D" path="res://assets/tiles/wall.png" id="16_tile_wall"]
+[ext_resource type="Texture2D" path="res://assets/tiles/ceiling.png" id="17_tile_ceiling"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
 size = Vector2(1200, 32)
@@ -24,6 +30,33 @@ size = Vector2(1200, 32)
 [node name="Game" type="Node2D"]
 script = ExtResource("1_game")
 
+[node name="ParallaxSky" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.1, 0.1)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxSky"]
+texture = ExtResource("12_bg_sky")
+centered = false
+position = Vector2(-480, -400)
+
+[node name="ParallaxMountains" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.3, 0.2)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxMountains"]
+texture = ExtResource("13_bg_mountains")
+centered = false
+position = Vector2(-480, -400)
+
+[node name="ParallaxTrees" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.6, 0.4)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxTrees"]
+texture = ExtResource("14_bg_trees")
+centered = false
+position = Vector2(-480, -400)
+
 [node name="Level" type="Node2D" parent="."]
 
 [node name="Floor" type="StaticBody2D" parent="Level"]
@@ -32,12 +65,13 @@ position = Vector2(600, 600)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Floor"]
 shape = SubResource("RectangleShape2D_floor")
 
-[node name="ColorRect" type="ColorRect" parent="Level/Floor"]
+[node name="FloorSprite" type="TextureRect" parent="Level/Floor"]
 offset_left = -600.0
 offset_top = -16.0
 offset_right = 600.0
 offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
+texture = ExtResource("15_tile_ground")
+stretch_mode = 1
 
 [node name="LeftWall" type="StaticBody2D" parent="Level"]
 position = Vector2(0, 250)
@@ -45,12 +79,13 @@ position = Vector2(0, 250)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/LeftWall"]
 shape = SubResource("RectangleShape2D_wall")
 
-[node name="ColorRect" type="ColorRect" parent="Level/LeftWall"]
+[node name="WallSprite" type="TextureRect" parent="Level/LeftWall"]
 offset_left = -16.0
 offset_top = -350.0
 offset_right = 16.0
 offset_bottom = 350.0
-color = Color(0.4, 0.4, 0.4, 1)
+texture = ExtResource("16_tile_wall")
+stretch_mode = 1
 
 [node name="RightWall" type="StaticBody2D" parent="Level"]
 position = Vector2(1200, 250)
@@ -58,12 +93,13 @@ position = Vector2(1200, 250)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/RightWall"]
 shape = SubResource("RectangleShape2D_wall")
 
-[node name="ColorRect" type="ColorRect" parent="Level/RightWall"]
+[node name="WallSprite" type="TextureRect" parent="Level/RightWall"]
 offset_left = -16.0
 offset_top = -350.0
 offset_right = 16.0
 offset_bottom = 350.0
-color = Color(0.4, 0.4, 0.4, 1)
+texture = ExtResource("16_tile_wall")
+stretch_mode = 1
 
 [node name="Ceiling" type="StaticBody2D" parent="Level"]
 position = Vector2(600, -100)
@@ -71,12 +107,13 @@ position = Vector2(600, -100)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Ceiling"]
 shape = SubResource("RectangleShape2D_ceiling")
 
-[node name="ColorRect" type="ColorRect" parent="Level/Ceiling"]
+[node name="CeilingSprite" type="TextureRect" parent="Level/Ceiling"]
 offset_left = -600.0
 offset_top = -16.0
 offset_right = 600.0
 offset_bottom = 16.0
-color = Color(0.4, 0.4, 0.4, 1)
+texture = ExtResource("17_tile_ceiling")
+stretch_mode = 1
 
 [node name="Players" type="Node2D" parent="."]
 

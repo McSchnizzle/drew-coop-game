@@ -1,6 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://enemy_hall001"]
+[gd_scene load_steps=7 format=3 uid="uid://enemy_hall001"]
 
 [ext_resource type="Script" path="res://scripts/enemies/enemy_hallucination.gd" id="1_enemy"]
+[ext_resource type="Texture2D" path="res://assets/enemies/enemy_hallucination_disguised.png" id="2_tex_disguised"]
+[ext_resource type="Texture2D" path="res://assets/enemies/enemy_hallucination_revealed.png" id="3_tex_revealed"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(24, 24)
@@ -28,12 +30,8 @@ script = ExtResource("1_enemy")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = -12.0
-offset_top = -12.0
-offset_right = 12.0
-offset_bottom = 12.0
-color = Color(0.2, 0.9, 0.2, 1)
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex_disguised")
 
 [node name="TypeLabel" type="Label" parent="."]
 offset_left = -12.0
