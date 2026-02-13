@@ -18,15 +18,7 @@ func _ready() -> void:
 	contact_damage = DH_CONTACT_DMG
 	_current_state = State.IDLE
 
-	# Set visual
-	var half := DH_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR
+	# Sprite2D texture is set in the .tscn scene file
 
 
 func _physics_process(delta: float) -> void:
