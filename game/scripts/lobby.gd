@@ -14,21 +14,16 @@ extends Control
 @onready var striker_button: Button = %StrikerButton
 @onready var engineer_button: Button = %EngineerButton
 @onready var role_label: Label = %RoleLabel
-@onready var player_slots: HBoxContainer = %PlayerSlots
+@onready var name_input: LineEdit = %NameInput
 @onready var leave_button: Button = %LeaveButton
 @onready var version_label: Label = %VersionLabel
 
-# Player stage constants
-const ROLE_COLORS := {
-	"striker": Color(0.910, 0.530, 0.169, 1),
-	"engineer": Color(0.231, 0.769, 0.290, 1),
-}
-const SLOT_EMPTY_COLOR := Color(0.165, 0.165, 0.220, 1)
+var _lobby_stage_3d: Node3D
+
 const TEXT_PRIMARY := Color(0.910, 0.910, 0.941, 1)
 const TEXT_SECONDARY := Color(0.690, 0.690, 0.753, 1)
 const TEXT_DISABLED := Color(0.376, 0.376, 0.439, 1)
 const MAX_PLAYERS := 4
-
 var _connected_player_count: int = 0
 var _is_host: bool = false
 var _room_code: String = ""
@@ -47,12 +42,17 @@ func _ready() -> void:
 	striker_button.pressed.connect(_on_striker_pressed)
 	engineer_button.pressed.connect(_on_engineer_pressed)
 	leave_button.pressed.connect(_on_leave_pressed)
+	name_input.text_changed.connect(_on_name_changed)
 
 	# Listen for networking events to update lobby state.
 	Events.connection_established.connect(_on_connection_established)
 	Events.player_joined.connect(_on_player_joined)
 	Events.player_left.connect(_on_player_left)
 	Events.connection_lost.connect(_on_connection_lost)
+
+	# Grab the 3D lobby stage from the SubViewport
+	var viewport := get_node("StageViewportContainer/SubViewport")
+	_lobby_stage_3d = viewport.get_node("LobbyStage3D")
 
 	# Apply theme styling and build role active styles
 	_setup_theme()
@@ -80,10 +80,13 @@ func _setup_returning_lobby() -> void:
 	_is_host = multiplayer.is_server()
 	_connected_player_count = NetworkManager.role_assignments.size()
 
-	# Recover this peer's selected role
+	# Recover this peer's selected role and name
 	var my_id := multiplayer.get_unique_id()
 	_selected_role = NetworkManager.role_assignments.get(my_id, "striker")
 	role_label.text = "Role: %s" % _selected_role.capitalize()
+	var my_name: String = NetworkManager.player_names.get(my_id, "")
+	if not my_name.is_empty():
+		name_input.text = my_name
 
 	# Already connected — disable host/join controls
 	host_button.disabled = true
@@ -250,38 +253,22 @@ func _setup_theme() -> void:
 	address_input.add_theme_color_override("font_color", TEXT_PRIMARY)
 	address_input.add_theme_color_override("font_placeholder_color", TEXT_SECONDARY)
 
-	# -- Apply panel style to PlayerStagePanel if it exists --
-	var player_stage_panel := get_node_or_null("MainVBox/PlayerStagePanel")
-	if player_stage_panel:
+	# -- Apply semi-transparent style to ControlPanel --
+	var control_panel := get_node_or_null("ControlPanel")
+	if control_panel:
 		var panel_style := StyleBoxFlat.new()
-		panel_style.bg_color = Color(0.118, 0.118, 0.165, 1)
-		panel_style.border_color = Color(0.180, 0.180, 0.251, 1)
-		panel_style.set_border_width_all(1)
-		panel_style.set_corner_radius_all(8)
-		player_stage_panel.add_theme_stylebox_override("panel", panel_style)
-
-	# -- Apply stage floor style --
-	var stage_floor := get_node_or_null("MainVBox/PlayerStagePanel/StageMargin/StageVBox/StageFloor")
-	if stage_floor:
-		var floor_style := StyleBoxFlat.new()
-		floor_style.bg_color = Color(0.145, 0.145, 0.188, 1)
-		floor_style.border_color = Color(0.208, 0.208, 0.290, 1)
-		floor_style.set_border_width_all(1)
-		floor_style.set_corner_radius_all(6)
-		floor_style.content_margin_left = 16.0
-		floor_style.content_margin_top = 12.0
-		floor_style.content_margin_right = 16.0
-		floor_style.content_margin_bottom = 12.0
-		stage_floor.add_theme_stylebox_override("panel", floor_style)
+		panel_style.bg_color = Color(0.071, 0.071, 0.094, 0.85)
+		panel_style.border_color = Color(0.180, 0.180, 0.251, 0.5)
+		panel_style.set_border_width_all(0)
+		panel_style.border_width_top = 1
+		panel_style.corner_radius_top_left = 12
+		panel_style.corner_radius_top_right = 12
+		control_panel.add_theme_stylebox_override("panel", panel_style)
 
 	# -- Set font colors on labels --
-	var title_label := get_node_or_null("MainVBox/TitleLabel")
+	var title_label := get_node_or_null("TitleLabel")
 	if title_label:
 		title_label.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var stage_title := get_node_or_null("MainVBox/PlayerStagePanel/StageMargin/StageVBox/StageTitle")
-	if stage_title:
-		stage_title.add_theme_color_override("font_color", TEXT_PRIMARY)
 
 	status_label.add_theme_color_override("font_color", TEXT_SECONDARY)
 	role_label.add_theme_color_override("font_color", TEXT_PRIMARY)
@@ -318,81 +305,21 @@ func _setup_theme() -> void:
 # ── Player Stage ──────────────────────────────────────────────────────────────
 
 func _rebuild_player_stage() -> void:
-	if not is_instance_valid(player_slots):
+	if not _lobby_stage_3d:
 		return
 
-	# Clear existing slots
-	for child in player_slots.get_children():
-		child.queue_free()
+	var roles: Dictionary = NetworkManager.role_assignments
+	var names: Dictionary = NetworkManager.player_names
 
-	# Build a slot for each connected player
-	var player_ids: Array = NetworkManager.role_assignments.keys()
-	for pid in player_ids:
-		var role: String = NetworkManager.role_assignments.get(pid, "striker")
-		var is_host_player: bool = (pid == 1)
-		_add_player_slot(pid, role, is_host_player)
+	# Show local player preview before hosting/joining
+	if roles.is_empty():
+		var preview_name := name_input.text.strip_edges()
+		if preview_name.is_empty():
+			preview_name = "You"
+		roles = { 0: _selected_role }
+		names = { 0: preview_name }
 
-	# Fill remaining with empty slots
-	var empty_count := MAX_PLAYERS - player_ids.size()
-	for i in empty_count:
-		_add_empty_slot()
-
-
-func _add_player_slot(pid: int, role: String, is_host_player: bool) -> void:
-	var slot := VBoxContainer.new()
-	slot.custom_minimum_size = Vector2(80, 0)
-	slot.alignment = BoxContainer.ALIGNMENT_CENTER
-
-	var body := ColorRect.new()
-	body.custom_minimum_size = Vector2(48, 56)
-	body.color = ROLE_COLORS.get(role, SLOT_EMPTY_COLOR)
-	slot.add_child(body)
-
-	var name_label := Label.new()
-	name_label.text = "Player %d" % pid
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 14)
-	name_label.add_theme_color_override("font_color", TEXT_PRIMARY)
-	name_label.clip_text = true
-	name_label.custom_minimum_size = Vector2(80, 0)
-	slot.add_child(name_label)
-
-	var role_tag := Label.new()
-	role_tag.text = role.to_upper()
-	role_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_tag.add_theme_font_size_override("font_size", 12)
-	role_tag.add_theme_color_override("font_color", ROLE_COLORS.get(role, TEXT_SECONDARY))
-	slot.add_child(role_tag)
-
-	if is_host_player:
-		var badge := Label.new()
-		badge.text = "HOST"
-		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge.add_theme_font_size_override("font_size", 11)
-		badge.add_theme_color_override("font_color", TEXT_SECONDARY)
-		slot.add_child(badge)
-
-	player_slots.add_child(slot)
-
-
-func _add_empty_slot() -> void:
-	var slot := VBoxContainer.new()
-	slot.custom_minimum_size = Vector2(80, 0)
-	slot.alignment = BoxContainer.ALIGNMENT_CENTER
-
-	var body := ColorRect.new()
-	body.custom_minimum_size = Vector2(48, 56)
-	body.color = SLOT_EMPTY_COLOR
-	slot.add_child(body)
-
-	var name_label := Label.new()
-	name_label.text = "Empty"
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 14)
-	name_label.add_theme_color_override("font_color", TEXT_DISABLED)
-	slot.add_child(name_label)
-
-	player_slots.add_child(slot)
+	_lobby_stage_3d.set_players(roles, names)
 
 
 # ── Role Selection ────────────────────────────────────────────────────────────
@@ -442,13 +369,47 @@ func _request_role(role_name: String) -> void:
 	if sender_id == 0:
 		sender_id = 1  # Local call from host
 	NetworkManager.role_assignments[sender_id] = role_name
-	_confirm_role.rpc(sender_id, role_name)
+	# Sync ALL roles to ALL peers so everyone sees every player
+	for pid in NetworkManager.role_assignments:
+		_confirm_role.rpc(pid, NetworkManager.role_assignments[pid])
 	print("Lobby: Player %d selected role '%s'" % [sender_id, role_name])
 
 
 @rpc("authority", "call_local", "reliable")
 func _confirm_role(player_id: int, role_name: String) -> void:
+	NetworkManager.role_assignments[player_id] = role_name
 	Events.role_assigned.emit(player_id, role_name)
+	_rebuild_player_stage()
+
+
+# ── Name Sync ─────────────────────────────────────────────────────────────────
+
+func _on_name_changed(new_text: String) -> void:
+	var display_name := new_text.strip_edges()
+	if display_name.is_empty():
+		display_name = "Player %d" % multiplayer.get_unique_id()
+	NetworkManager.player_names[multiplayer.get_unique_id()] = display_name
+	if multiplayer.multiplayer_peer != null:
+		_request_name.rpc_id(1, display_name)
+	_rebuild_player_stage()
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_name(display_name: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if sender_id == 0:
+		sender_id = 1
+	NetworkManager.player_names[sender_id] = display_name
+	# Sync all names to all peers
+	for pid in NetworkManager.player_names:
+		_confirm_name.rpc(pid, NetworkManager.player_names[pid])
+
+
+@rpc("authority", "call_local", "reliable")
+func _confirm_name(player_id: int, display_name: String) -> void:
+	NetworkManager.player_names[player_id] = display_name
 	_rebuild_player_stage()
 
 
@@ -473,8 +434,12 @@ func _on_host_pressed() -> void:
 	join_button.disabled = true
 	address_input.editable = false
 
-	# Register host's role
+	# Register host's role and name
 	NetworkManager.role_assignments[1] = _selected_role
+	var host_name := name_input.text.strip_edges()
+	if host_name.is_empty():
+		host_name = "Player 1"
+	NetworkManager.player_names[1] = host_name
 	leave_button.visible = true
 	_rebuild_player_stage()
 
@@ -525,6 +490,7 @@ func _on_leave_pressed() -> void:
 		multiplayer.multiplayer_peer = null
 	NetworkManager.peer = null
 	NetworkManager.role_assignments.clear()
+	NetworkManager.player_names.clear()
 	NetworkManager.is_returning_to_lobby = false
 
 	# Reset to fresh lobby state
@@ -559,8 +525,12 @@ func _on_connection_established(_peer_id: int, is_host: bool) -> void:
 		status_label.text = "Connected to server!"
 		_connected_player_count = 1  # We'll get accurate count from player_joined signals.
 		leave_button.visible = true
-		# Send role selection to server
+		# Send role and name to server
 		_request_role.rpc_id(1, _selected_role)
+		var my_name := name_input.text.strip_edges()
+		if my_name.is_empty():
+			my_name = "Player %d" % multiplayer.get_unique_id()
+		_request_name.rpc_id(1, my_name)
 	_rebuild_player_stage()
 
 

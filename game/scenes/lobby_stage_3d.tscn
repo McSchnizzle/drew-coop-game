@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://g00xfy3ln26c"]
+
+[ext_resource type="Script" uid="uid://dauyw56hvltrg" path="res://scripts/lobby_stage_3d.gd" id="1_stage3d"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.04, 0.04, 0.08, 1)
+sky_horizon_color = Color(0.08, 0.08, 0.15, 1)
+ground_bottom_color = Color(0.04, 0.04, 0.06, 1)
+ground_horizon_color = Color(0.08, 0.08, 0.15, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 2
+ambient_light_color = Color(0.15, 0.15, 0.25, 1)
+ambient_light_energy = 0.3
+tonemap_mode = 3
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1"]
+size = Vector2(20, 14)
+
+[sub_resource type="StandardMaterial3D" id="FloorMaterial_1"]
+albedo_color = Color(0.145, 0.145, 0.188, 1)
+metallic_specular = 0.05
+roughness = 0.85
+
+[node name="LobbyStage3D" type="Node3D" unique_id=2100328645]
+script = ExtResource("1_stage3d")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1833588904]
+transform = Transform3D(1, 0, 0, 0, 0.9397, 0.342, 0, -0.342, 0.9397, 0, 1.4, 3.8)
+fov = 50.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1828823493]
+transform = Transform3D(0.86601907, 0.35356307, -0.3535593, 0, 0.707103, 0.7071106, 0.500011, -0.6123712, 0.61236465, -0.5615399, 2.402515, 3.0488315)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=324893403]
+environment = SubResource("Environment_1")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=1868461842]
+mesh = SubResource("PlaneMesh_1")
+surface_material_override/0 = SubResource("FloorMaterial_1")
+
+[node name="SpawnPositions" type="Node3D" parent="." unique_id=2036471751]
+
+[node name="Spawn0" type="Marker3D" parent="SpawnPositions" unique_id=983453872]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.25, 0, 0)
+
+[node name="Spawn1" type="Marker3D" parent="SpawnPositions" unique_id=997142923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0, 0)
+
+[node name="Spawn2" type="Marker3D" parent="SpawnPositions" unique_id=848508934]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0, 0)
+
+[node name="Spawn3" type="Marker3D" parent="SpawnPositions" unique_id=125802057]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.25, 0, 0)
