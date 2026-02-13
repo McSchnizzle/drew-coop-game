@@ -25,15 +25,10 @@ func _ready() -> void:
 	contact_damage = CR_PROJ_DAMAGE
 	_current_state = State.IDLE
 
-	# Set visual
-	var half := CR_SIZE / 2.0
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.offset_left = -half.x
-		color_rect.offset_top = -half.y
-		color_rect.offset_right = half.x
-		color_rect.offset_bottom = half.y
-		color_rect.color = COLOR
+	# Set visual modulate to match the sickly yellow-green theme
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 
 func _state_chase(delta: float) -> void:

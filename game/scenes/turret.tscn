@@ -1,6 +1,7 @@
-[gd_scene format=3 uid="uid://turret001"]
+[gd_scene load_steps=6 format=3 uid="uid://turret001"]
 
 [ext_resource type="Script" path="res://scripts/entities/turret.gd" id="1_turret"]
+[ext_resource type="Texture2D" path="res://assets/sprites/turret.png" id="tex_turret"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(24, 24)
@@ -25,12 +26,8 @@ script = ExtResource("1_turret")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = -12.0
-offset_top = -12.0
-offset_right = 12.0
-offset_bottom = 12.0
-color = Color(0, 0.8, 0.8, 1)
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("tex_turret")
 
 [node name="TypeLabel" type="Label" parent="."]
 offset_left = -12.0

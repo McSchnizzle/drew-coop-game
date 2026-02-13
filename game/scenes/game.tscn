@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://game001"]
+[gd_scene load_steps=21 format=3 uid="uid://game001"]
 
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -11,6 +11,12 @@
 [ext_resource type="PackedScene" path="res://scenes/projectile_enemy.tscn" id="9_proj_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/turret.tscn" id="10_turret"]
 [ext_resource type="Script" path="res://scripts/wave_manager.gd" id="11_wave"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_far.png" id="tex_bg_far"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_mid.png" id="tex_bg_mid"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_near.png" id="tex_bg_near"]
+[ext_resource type="Texture2D" path="res://assets/tiles/floor.png" id="tex_floor"]
+[ext_resource type="Texture2D" path="res://assets/tiles/wall.png" id="tex_wall"]
+[ext_resource type="Texture2D" path="res://assets/tiles/ceiling.png" id="tex_ceiling"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
 size = Vector2(1200, 32)
@@ -24,6 +30,30 @@ size = Vector2(1200, 32)
 [node name="Game" type="Node2D"]
 script = ExtResource("1_game")
 
+[node name="ParallaxFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.1, 0.1)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxFar"]
+position = Vector2(960, 300)
+texture = ExtResource("tex_bg_far")
+
+[node name="ParallaxMid" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.3, 0.2)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxMid"]
+position = Vector2(960, 300)
+texture = ExtResource("tex_bg_mid")
+
+[node name="ParallaxNear" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.6, 0.4)
+repeat_size = Vector2(1920, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="ParallaxNear"]
+position = Vector2(960, 300)
+texture = ExtResource("tex_bg_near")
+
 [node name="Level" type="Node2D" parent="."]
 
 [node name="Floor" type="StaticBody2D" parent="Level"]
@@ -32,12 +62,8 @@ position = Vector2(600, 600)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Floor"]
 shape = SubResource("RectangleShape2D_floor")
 
-[node name="ColorRect" type="ColorRect" parent="Level/Floor"]
-offset_left = -600.0
-offset_top = -16.0
-offset_right = 600.0
-offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
+[node name="Sprite2D" type="Sprite2D" parent="Level/Floor"]
+texture = ExtResource("tex_floor")
 
 [node name="LeftWall" type="StaticBody2D" parent="Level"]
 position = Vector2(0, 250)
@@ -45,12 +71,8 @@ position = Vector2(0, 250)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/LeftWall"]
 shape = SubResource("RectangleShape2D_wall")
 
-[node name="ColorRect" type="ColorRect" parent="Level/LeftWall"]
-offset_left = -16.0
-offset_top = -350.0
-offset_right = 16.0
-offset_bottom = 350.0
-color = Color(0.4, 0.4, 0.4, 1)
+[node name="Sprite2D" type="Sprite2D" parent="Level/LeftWall"]
+texture = ExtResource("tex_wall")
 
 [node name="RightWall" type="StaticBody2D" parent="Level"]
 position = Vector2(1200, 250)
@@ -58,12 +80,8 @@ position = Vector2(1200, 250)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/RightWall"]
 shape = SubResource("RectangleShape2D_wall")
 
-[node name="ColorRect" type="ColorRect" parent="Level/RightWall"]
-offset_left = -16.0
-offset_top = -350.0
-offset_right = 16.0
-offset_bottom = 350.0
-color = Color(0.4, 0.4, 0.4, 1)
+[node name="Sprite2D" type="Sprite2D" parent="Level/RightWall"]
+texture = ExtResource("tex_wall")
 
 [node name="Ceiling" type="StaticBody2D" parent="Level"]
 position = Vector2(600, -100)
@@ -71,12 +89,8 @@ position = Vector2(600, -100)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Ceiling"]
 shape = SubResource("RectangleShape2D_ceiling")
 
-[node name="ColorRect" type="ColorRect" parent="Level/Ceiling"]
-offset_left = -600.0
-offset_top = -16.0
-offset_right = 600.0
-offset_bottom = 16.0
-color = Color(0.4, 0.4, 0.4, 1)
+[node name="Sprite2D" type="Sprite2D" parent="Level/Ceiling"]
+texture = ExtResource("tex_ceiling")
 
 [node name="Players" type="Node2D" parent="."]
 

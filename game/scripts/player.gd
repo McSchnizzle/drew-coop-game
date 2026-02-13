@@ -35,6 +35,11 @@ const PROJECTILE_SCENE: String = "res://scenes/projectile.tscn"
 # Revive constants
 const BLEEDOUT_TIME: float = 30.0
 
+# Preloaded player textures for role swapping
+var _tex_striker: Texture2D = preload("res://assets/sprites/player_striker.png")
+var _tex_engineer: Texture2D = preload("res://assets/sprites/player_engineer.png")
+var _tex_downed: Texture2D = preload("res://assets/sprites/player_downed.png")
+
 # ── Exported Properties ──────────────────────────────────────────────────────
 @export var player_id: int = 1:
 	set(id):
@@ -468,19 +473,21 @@ func die() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _show_downed_visual() -> void:
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.color = Color(0.5, 0.5, 0.5, 1.0)
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.texture = _tex_downed
+		sprite.modulate = Color(0.5, 0.5, 0.5, 1.0)
 
 
 @rpc("authority", "call_local", "reliable")
 func _set_role_color(role: String) -> void:
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
 		if role == "engineer":
-			color_rect.color = Color(0.2, 0.8, 0.3, 1.0)
+			sprite.texture = _tex_engineer
 		else:
-			color_rect.color = Color(1.0, 0.6, 0.1, 1.0)
+			sprite.texture = _tex_striker
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var role_label = get_node_or_null("RoleLabel") as Label
 	if role_label:
 		role_label.text = "S" if role == "striker" else "E"
