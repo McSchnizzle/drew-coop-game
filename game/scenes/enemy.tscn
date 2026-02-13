@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://enemy001"]
+[gd_scene load_steps=6 format=3 uid="uid://enemy001"]
 
 [ext_resource type="Script" path="res://scripts/enemy.gd" id="1_enemy"]
+[ext_resource type="Texture2D" path="res://assets/enemies/enemy_basic.png" id="tex_enemy"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(48, 48)
@@ -22,12 +23,8 @@ script = ExtResource("1_enemy")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = -24.0
-offset_top = -24.0
-offset_right = 24.0
-offset_bottom = 24.0
-color = Color(0.9, 0.15, 0.15, 1)
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("tex_enemy")
 
 [node name="Hurtbox" type="Area2D" parent="."]
 

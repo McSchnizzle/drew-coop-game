@@ -468,19 +468,21 @@ func die() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _show_downed_visual() -> void:
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
-		color_rect.color = Color(0.5, 0.5, 0.5, 1.0)
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		sprite.modulate = Color(0.5, 0.5, 0.5, 1.0)
 
 
 @rpc("authority", "call_local", "reliable")
 func _set_role_color(role: String) -> void:
-	var color_rect = get_node_or_null("ColorRect") as ColorRect
-	if color_rect:
+	var sprite = get_node_or_null("Sprite2D") as Sprite2D
+	if sprite:
+		# Swap texture based on role for distinct visual appearance.
 		if role == "engineer":
-			color_rect.color = Color(0.2, 0.8, 0.3, 1.0)
+			sprite.texture = load("res://assets/sprites/player_engineer.png")
 		else:
-			color_rect.color = Color(1.0, 0.6, 0.1, 1.0)
+			sprite.texture = load("res://assets/sprites/player_striker.png")
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	var role_label = get_node_or_null("RoleLabel") as Label
 	if role_label:
 		role_label.text = "S" if role == "striker" else "E"

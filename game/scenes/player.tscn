@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3 uid="uid://player001"]
+[gd_scene load_steps=8 format=3 uid="uid://player001"]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/ability_manager.gd" id="2_ability_mgr"]
 [ext_resource type="Script" path="res://scripts/revive_system.gd" id="3_revive_sys"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player.png" id="tex_player"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(32, 64)
@@ -68,12 +69,8 @@ script = ExtResource("1_player")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = -16.0
-offset_top = -32.0
-offset_right = 16.0
-offset_bottom = 32.0
-color = Color(0.2, 0.4, 1.0, 1)
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("tex_player")
 
 [node name="RoleLabel" type="Label" parent="."]
 offset_left = -16.0
