@@ -16,6 +16,9 @@ var player_names: Dictionary = {}
 # Set true when returning to lobby from a game (connection stays alive)
 var is_returning_to_lobby: bool = false
 
+# Tracks the highest wave reached across sessions (for bestiary unlock)
+var highest_wave_reached: int = 0
+
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 

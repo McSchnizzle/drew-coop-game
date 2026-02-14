@@ -2,191 +2,34 @@
 
 [ext_resource type="Script" uid="uid://2xj5bng3h5hi" path="res://scripts/lobby.gd" id="1_lobby"]
 [ext_resource type="PackedScene" uid="uid://g00xfy3ln26c" path="res://scenes/lobby_stage_3d.tscn" id="2_stage3d"]
+[ext_resource type="Shader" path="res://shaders/glass_blur.gdshader" id="3_shader"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_control_panel"]
-bg_color = Color(0.071, 0.071, 0.094, 0.85)
-border_width_top = 1
-border_color = Color(0.18, 0.18, 0.251, 0.5)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_info_blur"]
+shader = ExtResource("3_shader")
+shader_parameter/blur_amount = 3.0
+shader_parameter/tint = Color(0.15, 0.13, 0.22, 0.35)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_action_normal"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.231, 0.49, 0.847, 1)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_action_blur"]
+shader = ExtResource("3_shader")
+shader_parameter/blur_amount = 3.0
+shader_parameter/tint = Color(0.15, 0.13, 0.22, 0.35)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel_transparent"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_border"]
+bg_color = Color(1, 1, 1, 0.04)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.29, 0.569, 0.937, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+border_color = Color(1, 1, 1, 0.12)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_action_pressed"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.18, 0.4, 0.73, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.231, 0.49, 0.847, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_action_hover"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.29, 0.569, 0.937, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.38, 0.65, 1, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.102, 0.102, 0.133, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.18, 0.251, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lineedit_normal"]
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-bg_color = Color(0.094, 0.094, 0.141, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.18, 0.251, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lineedit_focus"]
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-bg_color = Color(0.094, 0.094, 0.141, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.231, 0.49, 0.847, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.145, 0.145, 0.208, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.227, 0.227, 0.322, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_pressed"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.102, 0.102, 0.157, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.227, 0.227, 0.322, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.188, 0.188, 0.282, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.29, 0.29, 0.408, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_striker_active"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.91, 0.53, 0.169, 0.2)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.91, 0.53, 0.169, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_engineer_active"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.231, 0.769, 0.29, 0.2)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.231, 0.769, 0.29, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[node name="Lobby" type="Control" unique_id=509765395]
+[node name="Lobby" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -195,7 +38,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_lobby")
 
-[node name="Background" type="ColorRect" parent="." unique_id=441358015]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -204,7 +47,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.031, 0.008, 0.071, 1)
 
-[node name="StageViewportContainer" type="SubViewportContainer" parent="." unique_id=877255565]
+[node name="StageViewportContainer" type="SubViewportContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -214,16 +57,16 @@ grow_vertical = 2
 mouse_filter = 2
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="StageViewportContainer" unique_id=1806166701]
+[node name="SubViewport" type="SubViewport" parent="StageViewportContainer"]
 own_world_3d = true
 handle_input_locally = false
 msaa_3d = 1
 size = Vector2i(1280, 720)
 render_target_update_mode = 4
 
-[node name="LobbyStage3D" parent="StageViewportContainer/SubViewport" unique_id=1836617371 instance=ExtResource("2_stage3d")]
+[node name="LobbyStage3D" parent="StageViewportContainer/SubViewport" instance=ExtResource("2_stage3d")]
 
-[node name="TitleLabel" type="Label" parent="." unique_id=990612861]
+[node name="TitleLabel" type="Label" parent="."]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -238,64 +81,112 @@ theme_override_font_sizes/font_size = 28
 text = "Drew's Co-op Game"
 horizontal_alignment = 1
 
-[node name="ControlPanel" type="PanelContainer" parent="." unique_id=882577656]
+[node name="BottomHUD" type="HBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 0.5
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -250.0
-offset_top = 0.0
-offset_right = 250.0
-offset_bottom = 0.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_control_panel")
+offset_left = 24.0
+offset_top = -190.0
+offset_right = -24.0
+offset_bottom = -30.0
+theme_override_constants/separation = 0
 
-[node name="ControlMargin" type="MarginContainer" parent="ControlPanel" unique_id=2101673107]
+[node name="InfoPanel" type="PanelContainer" parent="BottomHUD"]
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 16
+size_flags_horizontal = 0
+size_flags_vertical = 8
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel_transparent")
 
-[node name="ControlVBox" type="VBoxContainer" parent="ControlPanel/ControlMargin" unique_id=583664144]
+[node name="InfoBlurRect" type="ColorRect" parent="BottomHUD/InfoPanel"]
 layout_mode = 2
-theme_override_constants/separation = 10
+mouse_filter = 2
+material = SubResource("ShaderMaterial_info_blur")
 
-[node name="NameInput" type="LineEdit" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=1337000001]
+[node name="InfoBorder" type="Panel" parent="BottomHUD/InfoPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass_border")
+
+[node name="InfoMargin" type="MarginContainer" parent="BottomHUD/InfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="InfoVBox" type="VBoxContainer" parent="BottomHUD/InfoPanel/InfoMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameInput" type="LineEdit" parent="BottomHUD/InfoPanel/InfoMargin/InfoVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(240, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_colors/font_placeholder_color = Color(0.376, 0.376, 0.439, 1)
 theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_lineedit_normal")
-theme_override_styles/focus = SubResource("StyleBoxFlat_lineedit_focus")
 placeholder_text = "Enter your name..."
 max_length = 12
 
-[node name="ConnectionSection" type="VBoxContainer" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=398858084]
+[node name="RoleLabel" type="Label" parent="BottomHUD/InfoPanel/InfoMargin/InfoVBox"]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
+theme_override_font_sizes/font_size = 16
+text = "Role: None"
 
-[node name="HostButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection" unique_id=1070004471]
+[node name="StatusLabel" type="Label" parent="BottomHUD/InfoPanel/InfoMargin/InfoVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.69, 0.69, 0.753, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="Spacer" type="Control" parent="BottomHUD"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionPanel" type="PanelContainer" parent="BottomHUD"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 8
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel_transparent")
+
+[node name="ActionBlurRect" type="ColorRect" parent="BottomHUD/ActionPanel"]
+layout_mode = 2
+mouse_filter = 2
+material = SubResource("ShaderMaterial_action_blur")
+
+[node name="ActionBorder" type="Panel" parent="BottomHUD/ActionPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass_border")
+
+[node name="ActionMargin" type="MarginContainer" parent="BottomHUD/ActionPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="ActionVBox" type="VBoxContainer" parent="BottomHUD/ActionPanel/ActionMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HostButton" type="Button" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_action_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_action_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_action_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "Host Game"
 
-[node name="JoinContainer" type="HBoxContainer" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection" unique_id=501689029]
+[node name="JoinContainer" type="HBoxContainer" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox"]
 layout_mode = 2
 
-[node name="AddressInput" type="LineEdit" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection/JoinContainer" unique_id=287345403]
+[node name="AddressInput" type="LineEdit" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox/JoinContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
@@ -303,28 +194,22 @@ size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_colors/font_placeholder_color = Color(0.376, 0.376, 0.439, 1)
 theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_lineedit_normal")
-theme_override_styles/focus = SubResource("StyleBoxFlat_lineedit_focus")
 placeholder_text = "Room code or IP address"
 
-[node name="JoinButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection/JoinContainer" unique_id=1762330178]
+[node name="JoinButton" type="Button" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox/JoinContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_action_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_action_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_action_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "Join Game"
 
-[node name="RoomCodeContainer" type="HBoxContainer" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection" unique_id=2004193913]
+[node name="RoomCodeContainer" type="HBoxContainer" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 
-[node name="RoomCodeLabel" type="Label" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection/RoomCodeContainer" unique_id=1955618354]
+[node name="RoomCodeLabel" type="Label" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox/RoomCodeContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -332,80 +217,24 @@ theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1
 
-[node name="CopyButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox/ConnectionSection/RoomCodeContainer" unique_id=302200283]
+[node name="CopyButton" type="Button" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox/RoomCodeContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "Copy"
 
-[node name="RoleSection" type="VBoxContainer" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=1520623964]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="RoleLabel" type="Label" parent="ControlPanel/ControlMargin/ControlVBox/RoleSection" unique_id=1665198307]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
-theme_override_font_sizes/font_size = 16
-text = "Role: Striker"
-horizontal_alignment = 1
-
-[node name="RoleContainer" type="HBoxContainer" parent="ControlPanel/ControlMargin/ControlVBox/RoleSection" unique_id=1058919685]
-layout_mode = 2
-theme_override_constants/separation = 12
-alignment = 1
-
-[node name="StrikerButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox/RoleSection/RoleContainer" unique_id=425453858]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 40)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_striker_active")
-text = "Striker"
-
-[node name="EngineerButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox/RoleSection/RoleContainer" unique_id=442839421]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 40)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_engineer_active")
-text = "Engineer"
-
-[node name="StatusLabel" type="Label" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=183661117]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.69, 0.69, 0.753, 1)
-theme_override_font_sizes/font_size = 16
-horizontal_alignment = 1
-
-[node name="StartButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=879521988]
+[node name="StartButton" type="Button" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_action_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_action_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_action_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "Start Game"
 
-[node name="LeaveButton" type="Button" parent="ControlPanel/ControlMargin/ControlVBox" unique_id=1526717680]
+[node name="LeaveButton" type="Button" parent="BottomHUD/ActionPanel/ActionMargin/ActionVBox"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 40)
@@ -414,18 +243,35 @@ theme_override_colors/font_color = Color(0.91, 0.91, 0.941, 1)
 theme_override_font_sizes/font_size = 16
 text = "Leave Lobby"
 
-[node name="VersionLabel" type="Label" parent="." unique_id=469214171]
+[node name="HiddenRefs" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 0
+
+[node name="StrikerButton" type="Button" parent="HiddenRefs"]
+unique_name_in_owner = true
+layout_mode = 0
+text = "Striker"
+
+[node name="EngineerButton" type="Button" parent="HiddenRefs"]
+unique_name_in_owner = true
+layout_mode = 0
+text = "Engineer"
+
+[node name="RoleDescription" type="Label" parent="HiddenRefs"]
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="VersionLabel" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 3
+anchors_preset = 1
 anchor_left = 1.0
-anchor_top = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = -120.0
-offset_top = -30.0
+offset_top = 8.0
+offset_bottom = 28.0
 grow_horizontal = 0
-grow_vertical = 0
 theme_override_colors/font_color = Color(0.376, 0.376, 0.439, 1)
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 2

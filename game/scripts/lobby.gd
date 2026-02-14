@@ -14,6 +14,7 @@ extends Control
 @onready var striker_button: Button = %StrikerButton
 @onready var engineer_button: Button = %EngineerButton
 @onready var role_label: Label = %RoleLabel
+@onready var role_description: Label = %RoleDescription
 @onready var name_input: LineEdit = %NameInput
 @onready var leave_button: Button = %LeaveButton
 @onready var version_label: Label = %VersionLabel
@@ -24,14 +25,93 @@ const TEXT_PRIMARY := Color(0.910, 0.910, 0.941, 1)
 const TEXT_SECONDARY := Color(0.690, 0.690, 0.753, 1)
 const TEXT_DISABLED := Color(0.376, 0.376, 0.439, 1)
 const MAX_PLAYERS := 4
+
+const ROLE_DESCRIPTIONS := {
+	"striker": "Ability: Weak Point Scan — expose enemies for 2x damage\nSuper: Overdrive — double fire rate + damage for 8s\nPassive: +15% damage",
+	"engineer": "Ability: Deploy Turret — place auto-targeting turrets (max 2)\nSuper: Healing Pulse — heal & revive all teammates\nPassive: +20% stamina regen",
+}
+
+const ENEMY_DATA := [
+	{
+		"name": "MERGE CONFLICT",
+		"sprite": "res://assets/sprites/enemies/enemy_merge_conflict_t0.png",
+		"wave": 1,
+		"accent": Color(0.85, 0.20, 0.20),
+		"is_boss": false,
+		"description": "Chases players. Splits into 2 smaller copies on death. Kill with \"exposed\" status for a clean kill (no split).",
+	},
+	{
+		"name": "HALLUCINATION",
+		"sprite": "res://assets/sprites/enemies/enemy_hallucination_disguised.png",
+		"wave": 3,
+		"accent": Color(0.65, 0.30, 0.80),
+		"is_boss": false,
+		"description": "Disguises as a player. Shoot it to reveal its true form — then it's vulnerable.",
+	},
+	{
+		"name": "CONTEXT ROT",
+		"sprite": "res://assets/sprites/enemies/enemy_context_rot.png",
+		"wave": 4,
+		"accent": Color(0.70, 0.78, 0.20),
+		"is_boss": false,
+		"description": "Ranged attacker that keeps its distance. Projectiles scramble your HUD for 5s — your health and stamina bars show fake values. Don't panic, your real stats are fine!",
+	},
+	{
+		"name": "DEPENDENCY HELL",
+		"sprite": "res://assets/sprites/enemies/enemy_dependency_hell.png",
+		"wave": 5,
+		"accent": Color(0.20, 0.30, 0.70),
+		"is_boss": false,
+		"description": "Slow tank with a 200px aura that disables your abilities. Stay outside the aura or burst it down fast.",
+	},
+	{
+		"name": "KERNEL PANIC",
+		"sprite": "res://assets/sprites/enemies/boss_kernel_panic.png",
+		"wave": 5,
+		"accent": Color(0.10, 0.45, 0.90),
+		"is_boss": true,
+		"description": "Boss. Freezes then lunges at high speed (dodge the telegraph!). Phase 2: directional shield — attack from both sides to break it. Fires projectiles that invert your controls for 2s.",
+	},
+	{
+		"name": "STACK OVERFLOW",
+		"sprite": "res://assets/sprites/enemies/boss_kernel_panic.png",
+		"wave": 10,
+		"accent": Color(0.90, 0.15, 0.60),
+		"is_boss": true,
+		"description": "Ultra Boss. Recursively spawns smaller clones that each spawn more clones. Overloads the arena if you don't kill clones fast. Core is shielded until all active clones are dead. Attacks cause exponentially stacking damage-over-time.",
+	},
+]
 var _connected_player_count: int = 0
 var _is_host: bool = false
 var _room_code: String = ""
-var _selected_role: String = "striker"
+var _selected_role: String = ""
 
 # StyleBoxFlat resources for role button active states
 var _striker_active_style: StyleBoxFlat
 var _engineer_active_style: StyleBoxFlat
+
+# Character select overlay (built in _build_character_select)
+var _char_select: Control
+var _striker_card: PanelContainer
+var _engineer_card: PanelContainer
+var _striker_select_btn: Button
+var _engineer_select_btn: Button
+var _current_role_label: Label
+var _card_normal_style: StyleBoxFlat
+var _card_selected_striker_style: StyleBoxFlat
+var _card_selected_engineer_style: StyleBoxFlat
+
+# Tab bar
+var _role_tab_btn: Button
+var _enemies_tab_btn: Button
+var _lobby_tab_btn: Button
+var _tab_active_style: StyleBoxFlat
+var _tab_inactive_style: StyleBoxFlat
+
+# Enemies bestiary panel
+var _enemies_panel: Control
+
+var _glass_shader: Shader
 
 
 func _ready() -> void:
@@ -54,8 +134,11 @@ func _ready() -> void:
 	var viewport := get_node("StageViewportContainer/SubViewport")
 	_lobby_stage_3d = viewport.get_node("LobbyStage3D")
 
-	# Apply theme styling and build role active styles
+	# Load blur shader for character select overlay, then style everything
+	_glass_shader = load("res://shaders/glass_blur.gdshader")
 	_setup_theme()
+	_build_character_select()
+	_build_enemies_panel()
 
 	if NetworkManager.is_returning_to_lobby:
 		_setup_returning_lobby()
@@ -73,7 +156,8 @@ func _setup_fresh_lobby() -> void:
 	room_code_container.visible = false
 	leave_button.visible = false
 	status_label.text = "Ready to host or join."
-	role_label.text = "Role: Striker"
+	role_label.text = "Role: None"
+	_switch_to_role_tab()
 
 
 func _setup_returning_lobby() -> void:
@@ -82,8 +166,12 @@ func _setup_returning_lobby() -> void:
 
 	# Recover this peer's selected role and name
 	var my_id := multiplayer.get_unique_id()
-	_selected_role = NetworkManager.role_assignments.get(my_id, "striker")
-	role_label.text = "Role: %s" % _selected_role.capitalize()
+	_selected_role = NetworkManager.role_assignments.get(my_id, "")
+	if _selected_role.is_empty():
+		role_label.text = "Role: None"
+	else:
+		role_label.text = "Role: %s" % _selected_role.capitalize()
+	role_description.text = ROLE_DESCRIPTIONS.get(_selected_role, "")
 	var my_name: String = NetworkManager.player_names.get(my_id, "")
 	if not my_name.is_empty():
 		name_input.text = my_name
@@ -105,200 +193,138 @@ func _setup_returning_lobby() -> void:
 		start_button.visible = false
 		status_label.text = "Connected. Waiting for host to start..."
 
+	_switch_to_lobby_tab()
+
 
 # ── Theme Setup ───────────────────────────────────────────────────────────────
 
 func _setup_theme() -> void:
-	# -- Button base styles (normal/hover/pressed/disabled) --
-	var btn_normal := StyleBoxFlat.new()
-	btn_normal.bg_color = Color(0.145, 0.145, 0.208, 1)
-	btn_normal.border_color = Color(0.227, 0.227, 0.322, 1)
-	btn_normal.set_border_width_all(1)
-	btn_normal.set_corner_radius_all(6)
-	btn_normal.content_margin_left = 12.0
-	btn_normal.content_margin_top = 6.0
-	btn_normal.content_margin_right = 12.0
-	btn_normal.content_margin_bottom = 6.0
-
-	var btn_hover := StyleBoxFlat.new()
-	btn_hover.bg_color = Color(0.188, 0.188, 0.282, 1)
-	btn_hover.border_color = Color(0.290, 0.290, 0.408, 1)
-	btn_hover.set_border_width_all(1)
-	btn_hover.set_corner_radius_all(6)
-	btn_hover.content_margin_left = 12.0
-	btn_hover.content_margin_top = 6.0
-	btn_hover.content_margin_right = 12.0
-	btn_hover.content_margin_bottom = 6.0
-
-	var btn_pressed := StyleBoxFlat.new()
-	btn_pressed.bg_color = Color(0.102, 0.102, 0.157, 1)
-	btn_pressed.border_color = Color(0.227, 0.227, 0.322, 1)
-	btn_pressed.set_border_width_all(1)
-	btn_pressed.set_corner_radius_all(6)
-	btn_pressed.content_margin_left = 12.0
-	btn_pressed.content_margin_top = 6.0
-	btn_pressed.content_margin_right = 12.0
-	btn_pressed.content_margin_bottom = 6.0
-
-	var btn_disabled := StyleBoxFlat.new()
-	btn_disabled.bg_color = Color(0.102, 0.102, 0.133, 1)
-	btn_disabled.border_color = Color(0.180, 0.180, 0.251, 1)
-	btn_disabled.set_border_width_all(1)
-	btn_disabled.set_corner_radius_all(6)
-	btn_disabled.content_margin_left = 12.0
-	btn_disabled.content_margin_top = 6.0
-	btn_disabled.content_margin_right = 12.0
-	btn_disabled.content_margin_bottom = 6.0
-
-	# -- Action button styles (Host, Join, Start) --
-	var action_normal := StyleBoxFlat.new()
-	action_normal.bg_color = Color(0.231, 0.490, 0.847, 1)
-	action_normal.border_color = Color(0.290, 0.569, 0.937, 1)
-	action_normal.set_border_width_all(1)
-	action_normal.set_corner_radius_all(6)
-	action_normal.content_margin_left = 12.0
-	action_normal.content_margin_top = 6.0
-	action_normal.content_margin_right = 12.0
-	action_normal.content_margin_bottom = 6.0
-
-	var action_hover := StyleBoxFlat.new()
-	action_hover.bg_color = Color(0.290, 0.569, 0.937, 1)
-	action_hover.border_color = Color(0.380, 0.650, 1.0, 1)
-	action_hover.set_border_width_all(1)
-	action_hover.set_corner_radius_all(6)
-	action_hover.content_margin_left = 12.0
-	action_hover.content_margin_top = 6.0
-	action_hover.content_margin_right = 12.0
-	action_hover.content_margin_bottom = 6.0
-
-	var action_pressed := StyleBoxFlat.new()
-	action_pressed.bg_color = Color(0.180, 0.400, 0.730, 1)
-	action_pressed.border_color = Color(0.231, 0.490, 0.847, 1)
-	action_pressed.set_border_width_all(1)
-	action_pressed.set_corner_radius_all(6)
-	action_pressed.content_margin_left = 12.0
-	action_pressed.content_margin_top = 6.0
-	action_pressed.content_margin_right = 12.0
-	action_pressed.content_margin_bottom = 6.0
-
-	# -- LineEdit styles --
-	var line_edit_normal := StyleBoxFlat.new()
-	line_edit_normal.bg_color = Color(0.094, 0.094, 0.141, 1)
-	line_edit_normal.border_color = Color(0.180, 0.180, 0.251, 1)
-	line_edit_normal.set_border_width_all(1)
-	line_edit_normal.set_corner_radius_all(6)
-	line_edit_normal.content_margin_left = 10.0
-	line_edit_normal.content_margin_top = 6.0
-	line_edit_normal.content_margin_right = 10.0
-	line_edit_normal.content_margin_bottom = 6.0
-
-	var line_edit_focus := StyleBoxFlat.new()
-	line_edit_focus.bg_color = Color(0.094, 0.094, 0.141, 1)
-	line_edit_focus.border_color = Color(0.231, 0.490, 0.847, 1)
-	line_edit_focus.set_border_width_all(2)
-	line_edit_focus.set_corner_radius_all(6)
-	line_edit_focus.content_margin_left = 10.0
-	line_edit_focus.content_margin_top = 6.0
-	line_edit_focus.content_margin_right = 10.0
-	line_edit_focus.content_margin_bottom = 6.0
-
-	# -- Apply action (blue accent) styles to Host, Join, Start, Copy buttons --
-	for btn: Button in [host_button, join_button, start_button, copy_button]:
-		btn.add_theme_stylebox_override("normal", action_normal)
-		btn.add_theme_stylebox_override("hover", action_hover)
-		btn.add_theme_stylebox_override("pressed", action_pressed)
-		btn.add_theme_stylebox_override("disabled", btn_disabled)
-		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
-
-	# -- Apply base button styles to role buttons (Striker, Engineer) --
-	for btn: Button in [striker_button, engineer_button]:
-		btn.add_theme_stylebox_override("normal", btn_normal)
-		btn.add_theme_stylebox_override("hover", btn_hover)
-		btn.add_theme_stylebox_override("pressed", btn_pressed)
-		btn.add_theme_stylebox_override("disabled", btn_disabled)
-		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
-
-	# -- Striker active style (orange accent, applied when selected/disabled) --
-	_striker_active_style = StyleBoxFlat.new()
-	_striker_active_style.bg_color = Color(0.910, 0.530, 0.169, 0.2)
-	_striker_active_style.border_color = Color(0.910, 0.530, 0.169, 1)
-	_striker_active_style.set_border_width_all(2)
-	_striker_active_style.set_corner_radius_all(6)
-	_striker_active_style.content_margin_left = 12.0
-	_striker_active_style.content_margin_top = 6.0
-	_striker_active_style.content_margin_right = 12.0
-	_striker_active_style.content_margin_bottom = 6.0
-
-	# -- Engineer active style (green accent, applied when selected/disabled) --
-	_engineer_active_style = StyleBoxFlat.new()
-	_engineer_active_style.bg_color = Color(0.231, 0.769, 0.290, 0.2)
-	_engineer_active_style.border_color = Color(0.231, 0.769, 0.290, 1)
-	_engineer_active_style.set_border_width_all(2)
-	_engineer_active_style.set_corner_radius_all(6)
-	_engineer_active_style.content_margin_left = 12.0
-	_engineer_active_style.content_margin_top = 6.0
-	_engineer_active_style.content_margin_right = 12.0
-	_engineer_active_style.content_margin_bottom = 6.0
-
-	# -- Apply LineEdit styles to AddressInput --
-	address_input.add_theme_stylebox_override("normal", line_edit_normal)
-	address_input.add_theme_stylebox_override("focus", line_edit_focus)
-	address_input.add_theme_color_override("font_color", TEXT_PRIMARY)
-	address_input.add_theme_color_override("font_placeholder_color", TEXT_SECONDARY)
-
-	# -- Apply semi-transparent style to ControlPanel --
-	var control_panel := get_node_or_null("ControlPanel")
-	if control_panel:
-		var panel_style := StyleBoxFlat.new()
-		panel_style.bg_color = Color(0.071, 0.071, 0.094, 0.85)
-		panel_style.border_color = Color(0.180, 0.180, 0.251, 0.5)
-		panel_style.set_border_width_all(0)
-		panel_style.border_width_top = 1
-		panel_style.corner_radius_top_left = 12
-		panel_style.corner_radius_top_right = 12
-		control_panel.add_theme_stylebox_override("panel", panel_style)
-
-	# -- Set font colors on labels --
+	# ── Title label ──
 	var title_label := get_node_or_null("TitleLabel")
 	if title_label:
 		title_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+		title_label.add_theme_font_size_override("font_size", 30)
 
+	# ── Action buttons (Host, Join, Copy): frosted glass ──
+	var act_n := _make_stylebox(
+		Color(1, 1, 1, 0.07), Color(1, 1, 1, 0.12), 1, 12)
+	var act_h := _make_stylebox(
+		Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.22),
+		1, 12, Color(1, 1, 1, 0.06), 6)
+	var act_p := _make_stylebox(
+		Color(1, 1, 1, 0.04), Color(1, 1, 1, 0.08), 1, 12)
+	var btn_dis := _make_stylebox(
+		Color(1, 1, 1, 0.03), Color(1, 1, 1, 0.05), 1, 12)
+
+	for btn: Button in [host_button, join_button, copy_button]:
+		btn.add_theme_stylebox_override("normal", act_n)
+		btn.add_theme_stylebox_override("hover", act_h)
+		btn.add_theme_stylebox_override("pressed", act_p)
+		btn.add_theme_stylebox_override("disabled", btn_dis)
+		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+		btn.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
+		btn.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
+		btn.add_theme_font_size_override("font_size", 16)
+		btn.custom_minimum_size.y = 44
+
+	# ── Start button: cyan glass, prominent ──
+	var start_n := _make_stylebox(
+		Color(0.08, 0.55, 0.75, 0.30), Color(0.15, 0.70, 0.95, 0.50),
+		1, 14, Color(0.10, 0.55, 0.80, 0.12), 8)
+	var start_h := _make_stylebox(
+		Color(0.10, 0.65, 0.85, 0.40), Color(0.20, 0.80, 1.0, 0.65),
+		1, 14, Color(0.15, 0.65, 0.90, 0.20), 12)
+	var start_p := _make_stylebox(
+		Color(0.06, 0.45, 0.65, 0.25), Color(0.12, 0.60, 0.85, 0.45), 1, 14)
+	start_button.add_theme_stylebox_override("normal", start_n)
+	start_button.add_theme_stylebox_override("hover", start_h)
+	start_button.add_theme_stylebox_override("pressed", start_p)
+	start_button.add_theme_stylebox_override("disabled", btn_dis)
+	start_button.add_theme_color_override("font_color", Color(0.7, 0.95, 1.0, 1))
+	start_button.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+	start_button.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
+	start_button.add_theme_font_size_override("font_size", 18)
+	start_button.custom_minimum_size.y = 50
+
+	# ── Role buttons (hidden, kept for refs) ──
+	_striker_active_style = _make_stylebox(
+		Color(0.91, 0.53, 0.17, 0.12), Color(0.91, 0.53, 0.17, 0.60),
+		1, 12, Color(0.91, 0.53, 0.17, 0.08), 4)
+	_engineer_active_style = _make_stylebox(
+		Color(0.23, 0.77, 0.29, 0.12), Color(0.23, 0.77, 0.29, 0.60),
+		1, 12, Color(0.23, 0.77, 0.29, 0.08), 4)
+
+	# ── LineEdits: dark glass with subtle white border ──
+	var le_n := StyleBoxFlat.new()
+	le_n.bg_color = Color(0, 0, 0, 0.30)
+	le_n.border_color = Color(1, 1, 1, 0.08)
+	le_n.set_border_width_all(1)
+	le_n.set_corner_radius_all(10)
+	le_n.content_margin_left = 12.0
+	le_n.content_margin_top = 6.0
+	le_n.content_margin_right = 12.0
+	le_n.content_margin_bottom = 6.0
+
+	var le_f := StyleBoxFlat.new()
+	le_f.bg_color = Color(0, 0, 0, 0.35)
+	le_f.border_color = Color(1, 1, 1, 0.22)
+	le_f.set_border_width_all(1)
+	le_f.set_corner_radius_all(10)
+	le_f.content_margin_left = 12.0
+	le_f.content_margin_top = 6.0
+	le_f.content_margin_right = 12.0
+	le_f.content_margin_bottom = 6.0
+	le_f.shadow_color = Color(1, 1, 1, 0.05)
+	le_f.shadow_size = 4
+
+	for le: LineEdit in [address_input, name_input]:
+		le.add_theme_stylebox_override("normal", le_n)
+		le.add_theme_stylebox_override("focus", le_f)
+		le.add_theme_color_override("font_color", TEXT_PRIMARY)
+		le.add_theme_color_override("font_placeholder_color", TEXT_SECONDARY)
+		le.add_theme_font_size_override("font_size", 15)
+
+	# ── Labels ──
 	status_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	status_label.add_theme_font_size_override("font_size", 13)
 	role_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	role_label.add_theme_font_size_override("font_size", 15)
 	room_code_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	room_code_label.add_theme_font_size_override("font_size", 13)
 
-	# -- Leave button (red/danger style) --
-	var leave_normal := StyleBoxFlat.new()
-	leave_normal.bg_color = Color(0.698, 0.133, 0.133, 1)
-	leave_normal.border_color = Color(0.831, 0.200, 0.200, 1)
-	leave_normal.set_border_width_all(1)
-	leave_normal.set_corner_radius_all(6)
-	leave_normal.content_margin_left = 12.0
-	leave_normal.content_margin_top = 6.0
-	leave_normal.content_margin_right = 12.0
-	leave_normal.content_margin_bottom = 6.0
+	# ── Leave button: subtle glass outline, red on hover ──
+	var leave_n := _make_stylebox(
+		Color(0, 0, 0, 0), Color(0.80, 0.20, 0.20, 0.30), 1, 12)
+	var leave_h := _make_stylebox(
+		Color(0.80, 0.15, 0.15, 0.15), Color(0.85, 0.20, 0.20, 0.50),
+		1, 12, Color(0.70, 0.12, 0.12, 0.08), 4)
+	var leave_p := _make_stylebox(
+		Color(0.60, 0.10, 0.10, 0.20), Color(0.70, 0.15, 0.15, 0.45), 1, 12)
+	leave_button.add_theme_stylebox_override("normal", leave_n)
+	leave_button.add_theme_stylebox_override("hover", leave_h)
+	leave_button.add_theme_stylebox_override("pressed", leave_p)
+	leave_button.add_theme_color_override("font_color", Color(0.80, 0.30, 0.30, 1))
+	leave_button.add_theme_color_override("font_hover_color", Color(1.0, 0.40, 0.40, 1))
+	leave_button.add_theme_font_size_override("font_size", 14)
+	leave_button.custom_minimum_size.y = 38
 
-	var leave_hover := StyleBoxFlat.new()
-	leave_hover.bg_color = Color(0.831, 0.200, 0.200, 1)
-	leave_hover.border_color = Color(0.933, 0.300, 0.300, 1)
-	leave_hover.set_border_width_all(1)
-	leave_hover.set_corner_radius_all(6)
-	leave_hover.content_margin_left = 12.0
-	leave_hover.content_margin_top = 6.0
-	leave_hover.content_margin_right = 12.0
-	leave_hover.content_margin_bottom = 6.0
 
-	leave_button.add_theme_stylebox_override("normal", leave_normal)
-	leave_button.add_theme_stylebox_override("hover", leave_hover)
-	leave_button.add_theme_stylebox_override("pressed", btn_pressed)
-	leave_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-	leave_button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+func _make_stylebox(bg: Color, border: Color, border_w: int, corner_r: int,
+		shadow_col: Color = Color(0, 0, 0, 0), shadow_sz: int = 0) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(border_w)
+	sb.set_corner_radius_all(corner_r)
+	sb.content_margin_left = 14.0
+	sb.content_margin_top = 6.0
+	sb.content_margin_right = 14.0
+	sb.content_margin_bottom = 6.0
+	if shadow_sz > 0:
+		sb.shadow_color = shadow_col
+		sb.shadow_size = shadow_sz
+	return sb
 
 
 # ── Player Stage ──────────────────────────────────────────────────────────────
@@ -312,6 +338,9 @@ func _rebuild_player_stage() -> void:
 
 	# Show local player preview before hosting/joining
 	if roles.is_empty():
+		if _selected_role.is_empty():
+			_lobby_stage_3d.set_players({}, {})
+			return
 		var preview_name := name_input.text.strip_edges()
 		if preview_name.is_empty():
 			preview_name = "You"
@@ -326,6 +355,7 @@ func _rebuild_player_stage() -> void:
 func _on_striker_pressed() -> void:
 	_selected_role = "striker"
 	role_label.text = "Role: Striker"
+	role_description.text = ROLE_DESCRIPTIONS["striker"]
 	_update_role_buttons()
 	Events.role_selected.emit(multiplayer.get_unique_id(), "striker")
 	if multiplayer.multiplayer_peer != null:
@@ -336,6 +366,7 @@ func _on_striker_pressed() -> void:
 func _on_engineer_pressed() -> void:
 	_selected_role = "engineer"
 	role_label.text = "Role: Engineer"
+	role_description.text = ROLE_DESCRIPTIONS["engineer"]
 	_update_role_buttons()
 	Events.role_selected.emit(multiplayer.get_unique_id(), "engineer")
 	if multiplayer.multiplayer_peer != null:
@@ -350,12 +381,594 @@ func _update_role_buttons() -> void:
 		if _striker_active_style:
 			striker_button.add_theme_stylebox_override("disabled", _striker_active_style)
 		engineer_button.remove_theme_stylebox_override("disabled")
-	else:
+	elif _selected_role == "engineer":
 		striker_button.disabled = false
 		engineer_button.disabled = true
 		if _engineer_active_style:
 			engineer_button.add_theme_stylebox_override("disabled", _engineer_active_style)
 		striker_button.remove_theme_stylebox_override("disabled")
+	else:
+		striker_button.disabled = false
+		engineer_button.disabled = false
+		striker_button.remove_theme_stylebox_override("disabled")
+		engineer_button.remove_theme_stylebox_override("disabled")
+
+
+# ── Character Select & Tab Navigation ─────────────────────────────────────────
+
+func _switch_to_role_tab() -> void:
+	if not _char_select:
+		return
+	_char_select.visible = true
+	if _enemies_panel:
+		_enemies_panel.visible = false
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = false
+	_update_tab_styles("role")
+	_update_character_select_cards()
+
+
+func _switch_to_lobby_tab() -> void:
+	if not _char_select:
+		return
+	_char_select.visible = false
+	if _enemies_panel:
+		_enemies_panel.visible = false
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = true
+	_update_tab_styles("lobby")
+
+
+func _switch_to_enemies_tab() -> void:
+	if not _enemies_panel:
+		return
+	_enemies_panel.visible = true
+	_refresh_enemies_panel()
+	if _char_select:
+		_char_select.visible = false
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = false
+	_update_tab_styles("enemies")
+
+
+func _update_tab_styles(active: String) -> void:
+	if not _role_tab_btn:
+		return
+	var tabs := {
+		"role": _role_tab_btn,
+		"enemies": _enemies_tab_btn,
+		"lobby": _lobby_tab_btn,
+	}
+	for key in tabs:
+		var btn: Button = tabs[key]
+		if not btn:
+			continue
+		if key == active:
+			btn.add_theme_stylebox_override("normal", _tab_active_style)
+			btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+		else:
+			btn.add_theme_stylebox_override("normal", _tab_inactive_style)
+			btn.add_theme_color_override("font_color", TEXT_SECONDARY)
+
+
+func _on_select_striker() -> void:
+	_selected_role = "striker"
+	role_label.text = "Role: Striker"
+	_update_role_buttons()
+	_update_character_select_cards()
+	Events.role_selected.emit(multiplayer.get_unique_id(), "striker")
+	if multiplayer.multiplayer_peer != null:
+		_request_role.rpc_id(1, "striker")
+	_rebuild_player_stage()
+	_switch_to_lobby_tab()
+
+
+func _on_select_engineer() -> void:
+	_selected_role = "engineer"
+	role_label.text = "Role: Engineer"
+	_update_role_buttons()
+	_update_character_select_cards()
+	Events.role_selected.emit(multiplayer.get_unique_id(), "engineer")
+	if multiplayer.multiplayer_peer != null:
+		_request_role.rpc_id(1, "engineer")
+	_rebuild_player_stage()
+	_switch_to_lobby_tab()
+
+
+func _update_character_select_cards() -> void:
+	if not _char_select:
+		return
+
+	if _selected_role == "striker":
+		_striker_card.add_theme_stylebox_override("panel", _card_selected_striker_style)
+		_engineer_card.add_theme_stylebox_override("panel", _card_normal_style)
+		_striker_select_btn.text = "Selected"
+		_striker_select_btn.disabled = true
+		_engineer_select_btn.text = "Select Engineer"
+		_engineer_select_btn.disabled = false
+		_current_role_label.text = "Currently selected: Striker"
+	elif _selected_role == "engineer":
+		_striker_card.add_theme_stylebox_override("panel", _card_normal_style)
+		_engineer_card.add_theme_stylebox_override("panel", _card_selected_engineer_style)
+		_striker_select_btn.text = "Select Striker"
+		_striker_select_btn.disabled = false
+		_engineer_select_btn.text = "Selected"
+		_engineer_select_btn.disabled = true
+		_current_role_label.text = "Currently selected: Engineer"
+	else:
+		_striker_card.add_theme_stylebox_override("panel", _card_normal_style)
+		_engineer_card.add_theme_stylebox_override("panel", _card_normal_style)
+		_striker_select_btn.text = "Select Striker"
+		_striker_select_btn.disabled = false
+		_engineer_select_btn.text = "Select Engineer"
+		_engineer_select_btn.disabled = false
+		_current_role_label.text = "Select a role to begin"
+
+
+func _build_character_select() -> void:
+	# -- Tab bar styles: glassmorphism with subtle underline --
+	_tab_active_style = StyleBoxFlat.new()
+	_tab_active_style.bg_color = Color(1, 1, 1, 0.06)
+	_tab_active_style.border_color = Color(1, 1, 1, 0.50)
+	_tab_active_style.set_border_width_all(0)
+	_tab_active_style.border_width_bottom = 2
+	_tab_active_style.set_corner_radius_all(0)
+	_tab_active_style.content_margin_left = 22.0
+	_tab_active_style.content_margin_top = 10.0
+	_tab_active_style.content_margin_right = 22.0
+	_tab_active_style.content_margin_bottom = 10.0
+
+	_tab_inactive_style = StyleBoxFlat.new()
+	_tab_inactive_style.bg_color = Color(0, 0, 0, 0)
+	_tab_inactive_style.set_border_width_all(0)
+	_tab_inactive_style.set_corner_radius_all(0)
+	_tab_inactive_style.content_margin_left = 22.0
+	_tab_inactive_style.content_margin_top = 10.0
+	_tab_inactive_style.content_margin_right = 22.0
+	_tab_inactive_style.content_margin_bottom = 10.0
+
+	# -- Card styles: glassmorphism with subtle borders --
+	_card_normal_style = StyleBoxFlat.new()
+	_card_normal_style.bg_color = Color(0.18, 0.16, 0.28, 0.75)
+	_card_normal_style.border_color = Color(1, 1, 1, 0.15)
+	_card_normal_style.set_border_width_all(1)
+	_card_normal_style.set_corner_radius_all(16)
+	_card_normal_style.shadow_color = Color(0, 0, 0, 0.30)
+	_card_normal_style.shadow_size = 12
+
+	_card_selected_striker_style = StyleBoxFlat.new()
+	_card_selected_striker_style.bg_color = Color(0.91, 0.53, 0.17, 0.08)
+	_card_selected_striker_style.border_color = Color(0.91, 0.53, 0.17, 0.55)
+	_card_selected_striker_style.set_border_width_all(1)
+	_card_selected_striker_style.set_corner_radius_all(16)
+	_card_selected_striker_style.shadow_color = Color(0.91, 0.53, 0.17, 0.12)
+	_card_selected_striker_style.shadow_size = 10
+
+	_card_selected_engineer_style = StyleBoxFlat.new()
+	_card_selected_engineer_style.bg_color = Color(0.23, 0.77, 0.29, 0.08)
+	_card_selected_engineer_style.border_color = Color(0.23, 0.77, 0.29, 0.55)
+	_card_selected_engineer_style.set_border_width_all(1)
+	_card_selected_engineer_style.set_corner_radius_all(16)
+	_card_selected_engineer_style.shadow_color = Color(0.23, 0.77, 0.29, 0.12)
+	_card_selected_engineer_style.shadow_size = 10
+
+	# -- Character select panel (below tab bar area, with blur) --
+	_char_select = Control.new()
+	_char_select.name = "CharacterSelect"
+	_char_select.visible = false
+	_char_select.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_char_select.offset_top = 110
+	_char_select.offset_bottom = -40
+	add_child(_char_select)
+
+	# Frosted blur overlay (heavier blur + darker tint than panels)
+	var overlay_blur := ColorRect.new()
+	overlay_blur.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var overlay_mat := ShaderMaterial.new()
+	overlay_mat.shader = _glass_shader
+	overlay_mat.set_shader_parameter("tint", Color(0.04, 0.03, 0.08, 0.70))
+	overlay_mat.set_shader_parameter("blur_amount", 4.0)
+	overlay_blur.material = overlay_mat
+	_char_select.add_child(overlay_blur)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 60)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_right", 60)
+	margin.add_theme_constant_override("margin_bottom", 60)
+	_char_select.add_child(margin)
+
+	var main_vbox := VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_theme_constant_override("separation", 24)
+	margin.add_child(main_vbox)
+
+	# -- Current role label (above cards) --
+	_current_role_label = Label.new()
+	_current_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_current_role_label.add_theme_font_size_override("font_size", 16)
+	_current_role_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	main_vbox.add_child(_current_role_label)
+
+	# -- Card container --
+	var card_container := HBoxContainer.new()
+	card_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_container.add_theme_constant_override("separation", 60)
+	main_vbox.add_child(card_container)
+
+	# -- Striker card --
+	var striker_color := Color(0.910, 0.530, 0.169)
+	_striker_card = _build_role_card(
+		"STRIKER", "Offensive Specialist", striker_color,
+		"Weak Point Scan",
+		"Expose enemies within 300px radius for 2x damage. Lasts 6s, 12s cooldown.",
+		"Overdrive",
+		"Double fire rate + damage and +20% move speed for 8s.",
+		"+15% projectile damage",
+		"Select Striker",
+	)
+	card_container.add_child(_striker_card)
+	_striker_select_btn = _striker_card.get_meta("select_button")
+	_striker_select_btn.pressed.connect(_on_select_striker)
+	_style_button_accent(_striker_select_btn, striker_color)
+
+	# -- Engineer card --
+	var engineer_color := Color(0.231, 0.769, 0.290)
+	_engineer_card = _build_role_card(
+		"ENGINEER", "Support Specialist", engineer_color,
+		"Deploy Turret",
+		"Place an auto-targeting turret. Max 2 active, 15s cooldown.",
+		"Healing Pulse",
+		"Heal all teammates 50 HP, revive downed players, and remove debuffs.",
+		"+20% stamina regen",
+		"Select Engineer",
+	)
+	card_container.add_child(_engineer_card)
+	_engineer_select_btn = _engineer_card.get_meta("select_button")
+	_engineer_select_btn.pressed.connect(_on_select_engineer)
+	_style_button_accent(_engineer_select_btn, engineer_color)
+
+	# -- Tab bar (added after CharacterSelect so it draws on top) --
+	var tab_bar := HBoxContainer.new()
+	tab_bar.anchor_left = 0.5
+	tab_bar.anchor_right = 0.5
+	tab_bar.offset_top = 68
+	tab_bar.offset_left = -225
+	tab_bar.offset_right = 225
+	tab_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	tab_bar.add_theme_constant_override("separation", 0)
+	add_child(tab_bar)
+
+	_role_tab_btn = Button.new()
+	_role_tab_btn.text = "Choose Role"
+	_role_tab_btn.add_theme_font_size_override("font_size", 16)
+	_role_tab_btn.pressed.connect(_switch_to_role_tab)
+	tab_bar.add_child(_role_tab_btn)
+
+	_enemies_tab_btn = Button.new()
+	_enemies_tab_btn.text = "Enemies"
+	_enemies_tab_btn.add_theme_font_size_override("font_size", 16)
+	_enemies_tab_btn.pressed.connect(_switch_to_enemies_tab)
+	tab_bar.add_child(_enemies_tab_btn)
+
+	_lobby_tab_btn = Button.new()
+	_lobby_tab_btn.text = "Lobby"
+	_lobby_tab_btn.add_theme_font_size_override("font_size", 16)
+	_lobby_tab_btn.pressed.connect(_switch_to_lobby_tab)
+	tab_bar.add_child(_lobby_tab_btn)
+
+	# Apply hover/pressed styles to all tabs
+	var tab_hover := StyleBoxFlat.new()
+	tab_hover.bg_color = Color(1, 1, 1, 0.05)
+	tab_hover.set_border_width_all(0)
+	tab_hover.set_corner_radius_all(0)
+	tab_hover.content_margin_left = 22.0
+	tab_hover.content_margin_top = 10.0
+	tab_hover.content_margin_right = 22.0
+	tab_hover.content_margin_bottom = 10.0
+
+	for btn in [_role_tab_btn, _enemies_tab_btn, _lobby_tab_btn]:
+		btn.add_theme_stylebox_override("hover", tab_hover)
+		btn.add_theme_stylebox_override("pressed", _tab_active_style)
+		btn.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
+
+	_update_character_select_cards()
+
+
+func _build_role_card(role_name: String, subtitle: String, accent: Color,
+		ability_name: String, ability_desc: String,
+		super_name: String, super_desc: String,
+		passive_text: String, button_text: String) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(300, 0)
+	card.size_flags_vertical = 0
+
+	var card_margin := MarginContainer.new()
+	card_margin.add_theme_constant_override("margin_left", 20)
+	card_margin.add_theme_constant_override("margin_top", 0)
+	card_margin.add_theme_constant_override("margin_right", 20)
+	card_margin.add_theme_constant_override("margin_bottom", 20)
+	card.add_child(card_margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	card_margin.add_child(vbox)
+
+	# Color bar at top
+	var color_bar := ColorRect.new()
+	color_bar.color = accent
+	color_bar.custom_minimum_size = Vector2(0, 6)
+	vbox.add_child(color_bar)
+
+	# Role name
+	var name_label := Label.new()
+	name_label.text = role_name
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 20)
+	name_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	vbox.add_child(name_label)
+
+	# Subtitle
+	var sub_label := Label.new()
+	sub_label.text = subtitle
+	sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_label.add_theme_font_size_override("font_size", 14)
+	sub_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	vbox.add_child(sub_label)
+
+	# Separator
+	var sep := HSeparator.new()
+	sep.add_theme_constant_override("separation", 6)
+	vbox.add_child(sep)
+
+	# Ability section
+	_add_card_section(vbox, "ABILITY", accent, ability_name, ability_desc)
+
+	# Super section
+	_add_card_section(vbox, "SUPER", accent, super_name, super_desc)
+
+	# Passive section
+	var passive_header := Label.new()
+	passive_header.text = "PASSIVE"
+	passive_header.add_theme_font_size_override("font_size", 12)
+	passive_header.add_theme_color_override("font_color", accent)
+	vbox.add_child(passive_header)
+
+	var passive_label := Label.new()
+	passive_label.text = passive_text
+	passive_label.add_theme_font_size_override("font_size", 16)
+	passive_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	vbox.add_child(passive_label)
+
+
+	# Select button
+	var select_btn := Button.new()
+	select_btn.text = button_text
+	select_btn.custom_minimum_size = Vector2(0, 44)
+	vbox.add_child(select_btn)
+
+	card.set_meta("select_button", select_btn)
+	return card
+
+
+func _add_card_section(parent: VBoxContainer, header: String, accent: Color,
+		title: String, desc: String) -> void:
+	var header_label := Label.new()
+	header_label.text = header
+	header_label.add_theme_font_size_override("font_size", 12)
+	header_label.add_theme_color_override("font_color", accent)
+	parent.add_child(header_label)
+
+	var title_lbl := Label.new()
+	title_lbl.text = title
+	title_lbl.add_theme_font_size_override("font_size", 16)
+	title_lbl.add_theme_color_override("font_color", TEXT_PRIMARY)
+	parent.add_child(title_lbl)
+
+	var desc_label := Label.new()
+	desc_label.text = desc
+	desc_label.add_theme_font_size_override("font_size", 13)
+	desc_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	parent.add_child(desc_label)
+
+
+func _style_button_accent(btn: Button, accent: Color) -> void:
+	var normal := _make_stylebox(
+		Color(accent.r, accent.g, accent.b, 0.12),
+		Color(accent.r, accent.g, accent.b, 0.35), 1, 14,
+		Color(accent.r, accent.g, accent.b, 0.06), 4)
+	var hover := _make_stylebox(
+		Color(accent.r, accent.g, accent.b, 0.22),
+		Color(accent.r, accent.g, accent.b, 0.50), 1, 14,
+		Color(accent.r, accent.g, accent.b, 0.12), 8)
+	var disabled := _make_stylebox(
+		Color(1, 1, 1, 0.03), Color(1, 1, 1, 0.05), 1, 14)
+
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("disabled", disabled)
+	btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+	btn.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+	btn.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
+	btn.add_theme_font_size_override("font_size", 16)
+	btn.custom_minimum_size.y = 48
+
+
+# ── Enemy Bestiary ─────────────────────────────────────────────────────────────
+
+func _build_enemies_panel() -> void:
+	_enemies_panel = Control.new()
+	_enemies_panel.name = "EnemiesPanel"
+	_enemies_panel.visible = false
+	_enemies_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_enemies_panel.offset_top = 110
+	_enemies_panel.offset_bottom = -40
+	add_child(_enemies_panel)
+
+	# Frosted blur overlay (same as character select)
+	var overlay_blur := ColorRect.new()
+	overlay_blur.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var overlay_mat := ShaderMaterial.new()
+	overlay_mat.shader = _glass_shader
+	overlay_mat.set_shader_parameter("tint", Color(0.04, 0.03, 0.08, 0.70))
+	overlay_mat.set_shader_parameter("blur_amount", 4.0)
+	overlay_blur.material = overlay_mat
+	_enemies_panel.add_child(overlay_blur)
+
+	# Scroll container for the card list
+	var scroll := ScrollContainer.new()
+	scroll.name = "EnemyScroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	_enemies_panel.add_child(scroll)
+
+	var margin := MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_theme_constant_override("margin_left", 80)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_right", 80)
+	margin.add_theme_constant_override("margin_bottom", 30)
+	scroll.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.name = "EnemyList"
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 16)
+	margin.add_child(vbox)
+
+	# Build one card per enemy
+	for data in ENEMY_DATA:
+		var card := _build_enemy_card(data)
+		vbox.add_child(card)
+
+
+func _build_enemy_card(data: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _card_normal_style)
+	card.set_meta("enemy_wave", data["wave"])
+	card.set_meta("enemy_description", data["description"])
+	card.set_meta("enemy_accent", data["accent"])
+
+	var card_margin := MarginContainer.new()
+	card_margin.add_theme_constant_override("margin_left", 16)
+	card_margin.add_theme_constant_override("margin_top", 16)
+	card_margin.add_theme_constant_override("margin_right", 16)
+	card_margin.add_theme_constant_override("margin_bottom", 16)
+	card.add_child(card_margin)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 16)
+	card_margin.add_child(hbox)
+
+	# Enemy sprite (64x64)
+	var sprite_rect := TextureRect.new()
+	sprite_rect.name = "Sprite"
+	sprite_rect.custom_minimum_size = Vector2(64, 64)
+	sprite_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sprite_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var tex := load(data["sprite"]) as Texture2D
+	if tex:
+		sprite_rect.texture = tex
+	hbox.add_child(sprite_rect)
+
+	# Right side: name, wave tag, description
+	var info_vbox := VBoxContainer.new()
+	info_vbox.name = "Info"
+	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_vbox.add_theme_constant_override("separation", 4)
+	hbox.add_child(info_vbox)
+
+	# Top row: name + wave/boss tag
+	var top_row := HBoxContainer.new()
+	top_row.add_theme_constant_override("separation", 10)
+	info_vbox.add_child(top_row)
+
+	var accent: Color = data["accent"]
+	var name_label := Label.new()
+	name_label.name = "Name"
+	name_label.text = data["name"]
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_color_override("font_color", accent)
+	top_row.add_child(name_label)
+
+	var wave_tag := Label.new()
+	wave_tag.name = "WaveTag"
+	if data["is_boss"]:
+		wave_tag.text = "BOSS — Wave %d" % data["wave"]
+	else:
+		wave_tag.text = "Wave %d" % data["wave"]
+	wave_tag.add_theme_font_size_override("font_size", 12)
+	wave_tag.add_theme_color_override("font_color", TEXT_SECONDARY)
+	top_row.add_child(wave_tag)
+
+	# Description
+	var desc_label := Label.new()
+	desc_label.text = data["description"]
+	desc_label.add_theme_font_size_override("font_size", 13)
+	desc_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info_vbox.add_child(desc_label)
+
+	# Store direct node refs for _refresh_enemies_panel
+	card.set_meta("ref_sprite", sprite_rect)
+	card.set_meta("ref_name", name_label)
+	card.set_meta("ref_desc", desc_label)
+
+	return card
+
+
+func _refresh_enemies_panel() -> void:
+	if not _enemies_panel:
+		return
+	var scroll := _enemies_panel.get_node_or_null("EnemyScroll")
+	if not scroll:
+		return
+	# MarginContainer is the first (only) child of ScrollContainer
+	var margin := scroll.get_child(0) if scroll.get_child_count() > 0 else null
+	if not margin:
+		return
+	var vbox := margin.get_node_or_null("EnemyList")
+	if not vbox:
+		return
+
+	var highest: int = NetworkManager.highest_wave_reached
+	for card in vbox.get_children():
+		if not card is PanelContainer:
+			continue
+		var unlock_wave: int = card.get_meta("enemy_wave")
+		var unlocked := highest >= unlock_wave
+
+		var sprite: TextureRect = card.get_meta("ref_sprite")
+		var name_lbl: Label = card.get_meta("ref_name")
+		var desc_lbl: Label = card.get_meta("ref_desc")
+
+		if unlocked:
+			if sprite:
+				sprite.modulate = Color(1, 1, 1, 1)
+			if name_lbl:
+				name_lbl.modulate = Color(1, 1, 1, 1)
+				name_lbl.add_theme_color_override("font_color", card.get_meta("enemy_accent"))
+			if desc_lbl:
+				desc_lbl.text = card.get_meta("enemy_description")
+				desc_lbl.add_theme_color_override("font_color", TEXT_SECONDARY)
+		else:
+			if sprite:
+				sprite.modulate = Color(0.25, 0.25, 0.25, 0.6)
+			if name_lbl:
+				name_lbl.modulate = Color(0.5, 0.5, 0.5, 0.7)
+				name_lbl.add_theme_color_override("font_color", TEXT_DISABLED)
+			if desc_lbl:
+				desc_lbl.text = "Reach wave %d to unlock" % unlock_wave
+				desc_lbl.add_theme_color_override("font_color", TEXT_DISABLED)
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -433,8 +1046,9 @@ func _on_host_pressed() -> void:
 	host_button.visible = false
 	join_button.get_parent().visible = false
 
-	# Register host's role and name
-	NetworkManager.role_assignments[1] = _selected_role
+	# Register host's role and name (if selected)
+	if not _selected_role.is_empty():
+		NetworkManager.role_assignments[1] = _selected_role
 	var host_name := name_input.text.strip_edges()
 	if host_name.is_empty():
 		host_name = "Player 1"
@@ -495,6 +1109,7 @@ func _on_leave_pressed() -> void:
 	_is_host = false
 	_connected_player_count = 0
 	_room_code = ""
+	_selected_role = ""
 	host_button.visible = true
 	join_button.get_parent().visible = true
 	leave_button.visible = false
@@ -522,8 +1137,9 @@ func _on_connection_established(_peer_id: int, is_host: bool) -> void:
 		status_label.text = "Connected to server!"
 		_connected_player_count = 1  # We'll get accurate count from player_joined signals.
 		leave_button.visible = true
-		# Send role and name to server
-		_request_role.rpc_id(1, _selected_role)
+		# Send role and name to server (if selected)
+		if not _selected_role.is_empty():
+			_request_role.rpc_id(1, _selected_role)
 		var my_name := name_input.text.strip_edges()
 		if my_name.is_empty():
 			my_name = "Player %d" % multiplayer.get_unique_id()
@@ -554,6 +1170,7 @@ func _on_connection_lost(_peer_id: int, reason: String) -> void:
 		return
 
 	# Server disconnected or connection failed — full reset.
+	_selected_role = ""
 	status_label.text = "Connection lost: %s" % reason
 	start_button.visible = false
 	room_code_container.visible = false
@@ -563,6 +1180,8 @@ func _on_connection_lost(_peer_id: int, reason: String) -> void:
 	join_button.get_parent().visible = true
 	_connected_player_count = 0
 	_is_host = false
+	role_label.text = "Role: None"
+	_switch_to_role_tab()
 	_rebuild_player_stage()
 
 

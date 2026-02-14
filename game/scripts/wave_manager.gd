@@ -100,6 +100,7 @@ func _start_next_wave() -> void:
 	_current_wave += 1
 	current_wave = _current_wave
 	wave_state_value = WaveState.SPAWNING
+	NetworkManager.highest_wave_reached = maxi(NetworkManager.highest_wave_reached, _current_wave)
 
 	_enemies_to_spawn = _get_enemy_count(_current_wave)
 	_enemies_spawned_this_wave = 0

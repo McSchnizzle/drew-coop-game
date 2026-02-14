@@ -3,7 +3,7 @@
 ## On death, if not exposed and tier < 2, spawns 2 children at tier+1.
 extends "res://scripts/enemies/enemy_base.gd"
 
-const SELF_SCENE: PackedScene = preload("res://scenes/enemies/enemy_merge_conflict.tscn")
+var SELF_SCENE: PackedScene  # Loaded on first split to avoid circular preload
 
 # Per-tier stats
 const TIER_HP: Array[int] = [3, 2, 1]
@@ -66,6 +66,8 @@ func _die(killed_by: int) -> void:
 
 
 func _spawn_children(_killed_by: int) -> void:
+	if not SELF_SCENE:
+		SELF_SCENE = load("res://scenes/enemies/enemy_merge_conflict.tscn")
 	var game_manager = get_tree().current_scene
 	var child_ids: Array[int] = []
 	var child_positions: Array[Vector2] = []
