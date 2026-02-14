@@ -47,6 +47,7 @@ var _enemies_spawned_this_wave: int = 0
 var _spawn_timer: float = 0.0
 var _rest_timer: float = 0.0
 var _game_time: float = 0.0
+var _boss_spawned_this_wave: bool = false
 
 # Synced to clients via parent GameManager's WaveSync
 var current_wave: int = 0
@@ -59,6 +60,7 @@ func _ready() -> void:
 		"hallucination": load("res://scenes/enemies/enemy_hallucination.tscn"),
 		"context_rot": load("res://scenes/enemies/enemy_context_rot.tscn"),
 		"dependency_hell": load("res://scenes/enemies/enemy_dependency_hell.tscn"),
+		"boss_kernel_panic": load("res://scenes/enemies/boss_kernel_panic.tscn"),
 	}
 
 
@@ -102,6 +104,7 @@ func _start_next_wave() -> void:
 	_enemies_to_spawn = _get_enemy_count(_current_wave)
 	_enemies_spawned_this_wave = 0
 	_spawn_timer = 0.0
+	_boss_spawned_this_wave = false
 	_wave_state = WaveState.SPAWNING
 
 	Events.wave_started.emit(_current_wave, _enemies_to_spawn)
@@ -110,6 +113,11 @@ func _start_next_wave() -> void:
 
 
 func _process_spawning(delta: float) -> void:
+	# Spawn boss on every 5th wave (5, 10, 15...)
+	if _current_wave % 5 == 0 and not _boss_spawned_this_wave:
+		_spawn_boss()
+		_boss_spawned_this_wave = true
+
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0 and _enemies_spawned_this_wave < _enemies_to_spawn:
 		_spawn_enemy()
@@ -191,6 +199,32 @@ func _spawn_enemy() -> void:
 	Events.enemy_spawned.emit(enemy.enemy_id, enemy_type, enemy.position)
 
 
+func _spawn_boss() -> void:
+	var scene: PackedScene = _enemy_scenes.get("boss_kernel_panic")
+	if scene == null:
+		return
+
+	var game_manager = get_parent()
+	var boss = scene.instantiate()
+	boss.enemy_id = game_manager.next_enemy_id()
+	boss.name = "Enemy_%d" % boss.enemy_id
+
+	# Spawn boss at center-right of the arena
+	boss.position = Vector2(1000, 300)
+
+	var enemies_node = get_tree().current_scene.get_node("Enemies")
+	enemies_node.add_child(boss, true)
+
+	# Apply difficulty scaling AFTER add_child so _ready() has set base stats
+	var health_scale := clampf(1.0 + (_current_wave - 1) * 0.15, 1.0, HEALTH_SCALE_MAX)
+	var speed_scale := clampf(1.0 + (_current_wave - 1) * 0.05, 1.0, SPEED_SCALE_MAX)
+	boss.apply_scaling(health_scale, speed_scale)
+
+	Events.boss_spawned.emit(boss.enemy_id, "boss_kernel_panic", boss.position)
+	_notify_boss_spawned.rpc()
+	print("WaveManager: BOSS Kernel Panic spawned on wave %d!" % _current_wave)
+
+
 func _pick_enemy_type(wave_number: int) -> String:
 	if wave_number <= 2:
 		return "merge_conflict"
@@ -249,6 +283,20 @@ func _notify_game_lost(wave: int, time: float) -> void:
 	wave_state_value = WaveState.GAME_OVER
 	_update_wave_hud_status("Game Over - Wave %d" % wave)
 	_show_end_screen("GAME OVER", wave, time)
+
+
+@rpc("authority", "call_local", "reliable")
+func _notify_boss_spawned() -> void:
+	_update_wave_hud_status("WARNING: KERNEL PANIC DETECTED")
+	# Clear warning after 3 seconds
+	get_tree().create_timer(3.0).timeout.connect(func():
+		var hud = get_tree().current_scene.get_node_or_null("UI/HUD")
+		if not hud:
+			return
+		var wave_label = hud.get_node_or_null("WaveLabel") as Label
+		if wave_label and wave_label.text == "WARNING: KERNEL PANIC DETECTED":
+			wave_label.text = "Wave: %d" % current_wave
+	)
 
 
 # ── HUD Helpers ──────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ var _elapsed: float = 0.0
 const STATUS_DURATIONS: Dictionary = {
 	"context_rot": 5.0,
 	"slow": 3.0,
+	"panic": 2.0,
 }
 
 

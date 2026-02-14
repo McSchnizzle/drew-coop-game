@@ -1,0 +1,67 @@
+[gd_scene load_steps=6 format=3 uid="uid://boss_kp001"]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_kernel_panic.gd" id="1_boss"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss_kernel_panic.png" id="2_tex_boss"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(120, 120)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hurtbox"]
+size = Vector2(120, 120)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_boss"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:health")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:_current_state")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:_current_phase")
+properties/3/spawn = true
+properties/3/replication_mode = 1
+properties/4/path = NodePath(".:_shield_active")
+properties/4/spawn = true
+properties/4/replication_mode = 1
+properties/5/path = NodePath(".:_shield_facing_left")
+properties/5/spawn = true
+properties/5/replication_mode = 1
+properties/6/path = NodePath(".:_is_frozen")
+properties/6/spawn = true
+properties/6/replication_mode = 1
+
+[node name="Enemy" type="CharacterBody2D"]
+script = ExtResource("1_boss")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex_boss")
+
+[node name="TypeLabel" type="Label" parent="."]
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+text = "FATAL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ShieldVisual" type="ColorRect" parent="."]
+visible = false
+offset_left = -70.0
+offset_top = -60.0
+offset_right = -50.0
+offset_bottom = 60.0
+color = Color(1, 1, 1, 0.4)
+
+[node name="Hurtbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("RectangleShape2D_hurtbox")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_boss")

@@ -63,6 +63,11 @@ signal super_activated(player_id: int, super_name: String)
 signal turret_deployed(owner_id: int, turret_id: int, position: Vector2)
 signal turret_destroyed(turret_id: int)
 
+# ── Boss Events ──────────────────────────────────────────────────────────────
+signal boss_spawned(boss_id: int, boss_type: String, position: Vector2)
+signal boss_phase_changed(boss_id: int, new_phase: int)
+signal boss_died(boss_id: int, killed_by: int)
+
 # ── Enemy-Specific Events ─────────────────────────────────────────────────────
 signal hallucination_revealed(enemy_id: int, position: Vector2)
 signal dependency_aura_entered(player_id: int, enemy_id: int)

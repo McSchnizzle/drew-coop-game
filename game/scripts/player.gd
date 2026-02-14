@@ -19,10 +19,6 @@ const SHOOT_COOLDOWN_TAP: float = 0.3    # Single shot delay
 const SHOOT_COOLDOWN_AUTO: float = 0.12  # Auto-fire rate when holding
 const AUTO_FIRE_DELAY: float = 0.4       # Hold time before auto-fire starts
 
-# Jump fatigue
-const JUMP_FATIGUE_WINDOW: float = 3.0   # Seconds to track consecutive jumps
-const JUMP_FATIGUE_THRESHOLD: int = 3    # Jumps before fatigue kicks in
-const JUMP_FATIGUE_PENALTY: float = 0.25 # 25% reduction per fatigued jump
 
 # Melee
 const MELEE_RANGE: float = 60.0          # How far melee reaches
@@ -73,7 +69,6 @@ var _is_alive: bool = true
 var _shoot_cooldown_timer: float = 0.0
 var _shoot_hold_time: float = 0.0        # How long shoot has been held
 var _is_auto_firing: bool = false
-var _jump_timestamps: Array[float] = []  # Recent jump times for fatigue tracking
 var _melee_cooldown_timer: float = 0.0
 var _projectile_scene: PackedScene = null
 var _sprint_toggled: bool = false          # Toggle sprint on/off with one click
@@ -168,6 +163,10 @@ func _server_process(delta: float) -> void:
 	# -- Sanitize client input --
 	input_move_dir = clampf(input_move_dir, -1.0, 1.0)
 
+	# Panic status: invert movement controls
+	if has_status("panic"):
+		input_move_dir = -input_move_dir
+
 	# -- Gravity --
 	if not is_on_floor():
 		velocity.y += GRAVITY * delta
@@ -203,9 +202,9 @@ func _server_process(delta: float) -> void:
 	elif input_move_dir < 0.0:
 		_facing = -1
 
-	# -- Jump with fatigue --
+	# -- Jump --
 	if input_jump and is_on_floor():
-		_apply_jump()
+		velocity.y = JUMP_VELOCITY
 
 	# -- Shooting (blocked during revive) --
 	if not _is_reviving_someone:
@@ -229,29 +228,8 @@ func _server_process(delta: float) -> void:
 	input_melee = false
 
 
-# ── Jump Fatigue System ──────────────────────────────────────────────────────
-
 func _apply_jump() -> void:
-	var now := Time.get_ticks_msec() / 1000.0
-
-	# Prune old jump timestamps outside the fatigue window.
-	_jump_timestamps = _jump_timestamps.filter(
-		func(t: float) -> bool: return now - t < JUMP_FATIGUE_WINDOW
-	)
-
-	# Record THIS jump before checking so it counts toward the threshold.
-	_jump_timestamps.append(now)
-
-	# Calculate fatigue penalty.
-	var jumps_in_window: int = _jump_timestamps.size()
-	var jump_vel := JUMP_VELOCITY
-	if jumps_in_window >= JUMP_FATIGUE_THRESHOLD:
-		var fatigue_count: int = jumps_in_window - JUMP_FATIGUE_THRESHOLD + 1
-		jump_vel *= (1.0 - JUMP_FATIGUE_PENALTY * fatigue_count)
-		# Clamp so jump velocity never exceeds 60% reduction.
-		jump_vel = maxf(jump_vel, JUMP_VELOCITY * 0.4)
-
-	velocity.y = jump_vel
+	velocity.y = JUMP_VELOCITY
 
 
 # ── Shooting System (tap + hold auto-fire) ───────────────────────────────────
