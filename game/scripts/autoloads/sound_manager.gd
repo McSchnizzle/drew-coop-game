@@ -67,7 +67,7 @@ func _on_enemy_died(_enemy_id: int, _killed_by: int, _clean_kill: bool) -> void:
 	_play(_enemy_died_player)
 
 
-func _on_player_died(_player_id: int, _position: Vector2) -> void:
+func _on_player_died(_player_id: int, _position: Vector3) -> void:
 	_play(_player_died_player)
 
 
@@ -79,7 +79,7 @@ func _on_wave_cleared(_wave_number: int) -> void:
 	_play(_wave_cleared_player)
 
 
-func _on_ability_activated(_player_id: int, _ability: String, _position: Vector2, _direction: Vector2) -> void:
+func _on_ability_activated(_player_id: int, _ability: String, _position: Vector3, _direction: Vector3) -> void:
 	_play(_ability_player)
 
 

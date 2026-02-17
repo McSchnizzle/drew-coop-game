@@ -347,8 +347,10 @@ func _show_hit_flash() -> void:
 	var original_emission_enabled: bool = mat.emission_enabled
 	mat.emission_enabled = true
 	mat.emission = Color(3.0, 3.0, 3.0)
-	# Guard against the node being freed before the timer fires (e.g. enemy dies).
-	get_tree().create_timer(0.1).timeout.connect(func():
+	# Use create_tween() so the tween is killed when this node is freed (no stale lambda).
+	var tween := create_tween()
+	tween.tween_interval(0.1)
+	tween.tween_callback(func():
 		if is_instance_valid(model) and mat:
 			mat.emission_enabled = original_emission_enabled
 			mat.emission = original_emission
@@ -368,7 +370,9 @@ func _show_melee_strike(hit_pos: Vector3) -> void:
 			var original_emission_enabled: bool = mat.emission_enabled
 			mat.emission_enabled = true
 			mat.emission = Color(2.5, 0.6, 0.2)
-			get_tree().create_timer(0.15).timeout.connect(func():
+			var flash_tween := create_tween()
+			flash_tween.tween_interval(0.15)
+			flash_tween.tween_callback(func():
 				if is_instance_valid(model) and mat:
 					mat.emission_enabled = original_emission_enabled
 					mat.emission = original_emission
