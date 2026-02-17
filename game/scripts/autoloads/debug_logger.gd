@@ -10,6 +10,11 @@ const MAX_FILE_SIZE := 512 * 1024  # 512 KB cap, then rotate
 var _file: FileAccess = null
 var _log_path: String = ""
 
+# Godot engine log tailing — captures parse errors, engine errors, etc.
+var _godot_log: FileAccess = null
+var _godot_log_poll: float = 0.0
+const GODOT_LOG_POLL_INTERVAL: float = 0.5
+
 # Game context — updated by signal listeners
 var _current_wave: int = 0
 var _player_count: int = 0
@@ -24,6 +29,7 @@ func _ready() -> void:
 		_log_path = ProjectSettings.globalize_path(LOG_PATH_EXPORT)
 
 	_open_log()
+	_open_godot_log()
 	info("DebugLogger started — writing to %s" % _log_path)
 
 	# Listen for game events to track context
@@ -47,6 +53,9 @@ func _notification(what: int) -> void:
 		if _file:
 			_file.close()
 			_file = null
+		if _godot_log:
+			_godot_log.close()
+			_godot_log = null
 
 
 func _open_log() -> void:
@@ -68,6 +77,41 @@ func _open_log() -> void:
 		_file = FileAccess.open(_log_path, FileAccess.WRITE)
 	else:
 		_file.seek_end()
+
+
+func _open_godot_log() -> void:
+	# Find the Godot engine log and seek to end so we only capture new errors.
+	var godot_log_path := ProjectSettings.globalize_path("user://logs/godot.log")
+	if not FileAccess.file_exists(godot_log_path):
+		return
+	_godot_log = FileAccess.open(godot_log_path, FileAccess.READ)
+	if _godot_log:
+		_godot_log.seek_end()
+
+
+func _poll_godot_log() -> void:
+	if not _godot_log:
+		return
+	# Read any new lines appended since last poll
+	while _godot_log.get_position() < _godot_log.get_length():
+		var line := _godot_log.get_line()
+		if line.is_empty():
+			continue
+		# Capture ERROR and WARNING lines from the engine
+		if line.begins_with("ERROR:") or line.begins_with("SCRIPT ERROR:") or "Parse Error" in line:
+			_write_raw("ENGINE", line.strip_edges())
+		elif line.begins_with("WARNING:"):
+			_write_raw("ENGINE_WARN", line.strip_edges())
+
+
+func _write_raw(level: String, msg: String) -> void:
+	## Write to debug log without also pushing to Godot output (avoids echo loop).
+	var timestamp := Time.get_datetime_string_from_system(false, true)
+	var context := _build_context()
+	var line := "[%s] %s: %s%s\n" % [timestamp, level, msg, context]
+	if _file:
+		_file.store_string(line)
+		_file.flush()
 
 
 func _write(level: String, msg: String) -> void:
@@ -147,7 +191,13 @@ func _on_boss_died(enemy_id: int, killed_by: int) -> void:
 
 # ── Scene Tracking ────────────────────────────────────────────────────────────
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# Poll the Godot engine log for new errors (parse errors, engine crashes, etc.)
+	_godot_log_poll += delta
+	if _godot_log_poll >= GODOT_LOG_POLL_INTERVAL:
+		_godot_log_poll = 0.0
+		_poll_godot_log()
+
 	var scene := get_tree().current_scene
 	if scene:
 		var new_name := scene.name
