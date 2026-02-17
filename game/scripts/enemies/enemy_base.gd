@@ -155,12 +155,17 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 	## Load animations from separate FBX files into the model's AnimationPlayer.
 	## anim_map: { "Walk": "res://path/to/walk.fbx", "Death": "res://path/to/death.fbx", ... }
 	if not _model_node:
+		print("[AnimDebug] No _model_node, skipping external anims")
 		return
+
 	# Ensure we have an AnimationPlayer
 	if not _anim_player:
 		_anim_player = AnimationPlayer.new()
 		_model_node.add_child(_anim_player)
 		_anim_player.root_node = _anim_player.get_path_to(_model_node)
+		print("[AnimDebug] Created new AnimationPlayer, root_node=%s" % str(_anim_player.root_node))
+	else:
+		print("[AnimDebug] Using existing AnimationPlayer at %s, root_node=%s" % [_anim_player.get_path(), str(_anim_player.root_node)])
 
 	# Get or create the default animation library
 	var lib: AnimationLibrary
@@ -174,28 +179,51 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 		var fbx_path: String = anim_map[anim_name]
 		var scene: PackedScene = load(fbx_path) as PackedScene
 		if not scene:
+			print("[AnimDebug] Failed to load %s" % fbx_path)
 			continue
 		# Instantiate temp scene to extract its animation
 		var temp: Node = scene.instantiate()
 		var temp_player := _find_anim_player(temp)
 		if not temp_player:
+			print("[AnimDebug] No AnimationPlayer in %s" % fbx_path)
 			temp.free()
 			continue
 		var anim_list := temp_player.get_animation_list()
 		if anim_list.is_empty():
+			print("[AnimDebug] No animations in %s" % fbx_path)
 			temp.free()
 			continue
+		print("[AnimDebug] %s has anims: %s (root=%s)" % [fbx_path, str(anim_list), str(temp_player.root_node)])
 		# Copy the first animation (Mixamo exports have one per FBX)
 		var source_anim: Animation = temp_player.get_animation(anim_list[0])
 		if source_anim:
 			var anim_copy := source_anim.duplicate()
+			# Log track info for first anim only
+			if anim_name == "Idle":
+				print("[AnimDebug] Idle anim has %d tracks:" % anim_copy.get_track_count())
+				for i in mini(anim_copy.get_track_count(), 5):
+					print("[AnimDebug]   track %d: %s" % [i, str(anim_copy.track_get_path(i))])
 			# Set looping for movement/idle animations
 			if anim_name in ["Idle", "Walk", "Run"]:
 				anim_copy.loop_mode = Animation.LOOP_LINEAR
 			if lib.has_animation(anim_name):
 				lib.remove_animation(anim_name)
 			lib.add_animation(anim_name, anim_copy)
+			print("[AnimDebug] Added '%s' (%d tracks)" % [anim_name, anim_copy.get_track_count()])
 		temp.free()
+
+	# Summary
+	print("[AnimDebug] Final animation list: %s" % str(_anim_player.get_animation_list()))
+	# Log our model's node tree for path debugging
+	print("[AnimDebug] Model tree:")
+	_debug_print_tree(_model_node, "  ")
+
+
+func _debug_print_tree(node: Node, indent: String) -> void:
+	print("[AnimDebug] %s%s (%s)" % [indent, node.name, node.get_class()])
+	for child in node.get_children():
+		if indent.length() < 10:  # Limit depth
+			_debug_print_tree(child, indent + "  ")
 
 
 func _play_anim(anim_name: String) -> void:
