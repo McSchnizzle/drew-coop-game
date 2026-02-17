@@ -17,6 +17,7 @@ const TIER_COLORS: Array[Color] = [
 ]
 
 var size_tier: int = 0
+var _is_enraged: bool = false  # true when last merge conflict alive — switches to Run
 
 
 func _ready() -> void:
@@ -32,6 +33,23 @@ func _ready() -> void:
 	})
 	_tint_model(Color(0.9, 0.3, 0.3))  # Red tint
 	_apply_tier_stats()
+	if multiplayer.is_server() and Events.has_signal("enemy_died"):
+		Events.enemy_died.connect(_on_any_enemy_died)
+
+
+func _on_any_enemy_died(_eid: int, _kid: int, _clean: bool) -> void:
+	if _is_enraged or not _is_alive:
+		return
+	# Count living merge conflict enemies (same script)
+	var mc_alive := 0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy.get_script() == get_script() and enemy.get("_is_alive") and enemy._is_alive:
+			mc_alive += 1
+	if mc_alive <= 1:
+		_is_enraged = true
+		speed = TIER_SPEED[size_tier] * 1.5
+		if _current_state == State.CHASE:
+			_play_anim("Run")
 
 
 func _transition_to(new_state: State) -> void:
@@ -40,7 +58,7 @@ func _transition_to(new_state: State) -> void:
 		State.IDLE:
 			_play_anim("Idle")
 		State.CHASE:
-			_play_anim("Run")
+			_play_anim("Run" if _is_enraged else "Walk")
 		State.ATTACK:
 			_play_anim("Attack")
 		State.FLEE:
