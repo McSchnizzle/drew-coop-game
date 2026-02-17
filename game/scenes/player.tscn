@@ -1,12 +1,26 @@
-[gd_scene load_steps=9 format=3 uid="uid://player001"]
+[gd_scene load_steps=13 format=3 uid="uid://player001"]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/ability_manager.gd" id="2_ability_mgr"]
 [ext_resource type="Script" path="res://scripts/revive_system.gd" id="3_revive_sys"]
-[ext_resource type="Texture2D" path="res://assets/sprites/player_default.png" id="4_tex_default"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
-size = Vector2(32, 64)
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.35
+height = 1.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+albedo_color = Color(0.3, 0.5, 0.9, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+radius = 0.25
+height = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
+albedo_color = Color(0.4, 0.6, 1.0, 1)
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_server"]
 properties/0/path = NodePath(".:position")
@@ -36,15 +50,18 @@ properties/7/replication_mode = 1
 properties/8/path = NodePath(".:super_charge")
 properties/8/spawn = true
 properties/8/replication_mode = 1
+properties/9/path = NodePath(".:rotation:y")
+properties/9/spawn = true
+properties/9/replication_mode = 1
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_input"]
 properties/0/path = NodePath(".:input_move_dir")
 properties/0/spawn = true
 properties/0/replication_mode = 1
-properties/1/path = NodePath(".:input_shoot")
+properties/1/path = NodePath(".:input_aim_dir")
 properties/1/spawn = true
 properties/1/replication_mode = 1
-properties/2/path = NodePath(".:input_jump")
+properties/2/path = NodePath(".:input_shoot")
 properties/2/spawn = true
 properties/2/replication_mode = 1
 properties/3/path = NodePath(".:input_sprint")
@@ -62,31 +79,38 @@ properties/6/replication_mode = 1
 properties/7/path = NodePath(".:input_interact")
 properties/7/spawn = true
 properties/7/replication_mode = 1
+properties/8/path = NodePath(".:_camera_pitch")
+properties/8/spawn = true
+properties/8/replication_mode = 1
 
-[node name="Player" type="CharacterBody2D"]
+[node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_body")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("4_tex_default")
+[node name="PlayerModel" type="Node3D" parent="."]
 
-[node name="RoleLabel" type="Label" parent="."]
-offset_left = -16.0
-offset_top = -48.0
-offset_right = 16.0
-offset_bottom = -34.0
-text = "P"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Body" type="MeshInstance3D" parent="PlayerModel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+mesh = SubResource("CapsuleMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_body")
 
-[node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(1, 1)
-enabled = false
+[node name="Head" type="MeshInstance3D" parent="PlayerModel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_head")
 
-[node name="ShootPoint" type="Marker2D" parent="."]
-position = Vector2(20, 0)
+[node name="CameraMount" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraMount"]
+current = false
+fov = 75.0
+
+[node name="ShootPoint" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.0)
 
 [node name="ServerSync" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_server")

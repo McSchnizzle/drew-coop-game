@@ -6,7 +6,7 @@ extends Node
 const OVERDRIVE_DURATION: float = 8.0
 
 
-func activate(player: CharacterBody2D) -> void:
+func activate(player: CharacterBody3D) -> void:
 	player.apply_status("overdrive", OVERDRIVE_DURATION)
 	Events.super_activated.emit(player.player_id, "overdrive")
 	# Show visual via player's RPC (player node exists on all peers).

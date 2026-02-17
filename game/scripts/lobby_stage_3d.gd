@@ -13,17 +13,19 @@ const ROLE_ACCENTS := {
 const EMPTY_COLOR := Color(0.165, 0.165, 0.220)
 const EMPTY_ACCENT := Color(0.25, 0.25, 0.35)
 const MAX_PLAYERS := 4
+const PLAYER_MODEL_PATH := "res://assets/models/player_robot.fbx"
 
 # Character proportions
 const BODY_RADIUS := 0.18
 const BODY_HEIGHT := 0.55
 const HEAD_RADIUS := 0.14
 const VISOR_SIZE := Vector3(0.22, 0.06, 0.08)
-const CHAR_TOTAL_HEIGHT := 0.97  # body_center(0.35) + body_half(0.275) + head(0.28) + gap
+const CHAR_TOTAL_HEIGHT := 0.55  # Tuned for camera framing in lobby SubViewport
 
 var _spawn_points: Array[Marker3D] = []
 var _player_figures: Array = []   # Node3D roots for each slot
 var _player_labels: Array = []
+var _host_label: Label3D          # "Repo Owner" label above host
 
 
 func _ready() -> void:
@@ -45,7 +47,8 @@ func _process(delta: float) -> void:
 		if _player_figures[i] != null:
 			var fig: Node3D = _player_figures[i]
 			fig.rotation.y += delta * 0.3
-			fig.position.y = sin(Time.get_ticks_msec() * 0.002 + i * 1.5) * 0.04
+			var base_y: float = _spawn_points[i].position.y
+			fig.position.y = base_y + sin(Time.get_ticks_msec() * 0.002 + i * 1.5) * 0.04
 
 
 ## Called by lobby.gd whenever role_assignments or names change.
@@ -57,6 +60,9 @@ func set_players(role_assignments: Dictionary, player_names: Dictionary = {}) ->
 		if _player_labels[i] != null:
 			_player_labels[i].queue_free()
 			_player_labels[i] = null
+	if _host_label:
+		_host_label.queue_free()
+		_host_label = null
 
 	var player_ids: Array = role_assignments.keys()
 	for i in MAX_PLAYERS:
@@ -66,6 +72,8 @@ func set_players(role_assignments: Dictionary, player_names: Dictionary = {}) ->
 			var display_name: String = player_names.get(pid, "Player %d" % pid)
 			_create_character(i, role, 1.0)
 			_create_label(i, display_name, ROLE_COLORS.get(role, EMPTY_COLOR), 1.0)
+			if pid == 1:
+				_create_host_label(i)
 		else:
 			_create_character(i, "", 0.3)
 			_create_label(i, "Empty", EMPTY_COLOR, 0.3)
@@ -74,8 +82,91 @@ func set_players(role_assignments: Dictionary, player_names: Dictionary = {}) ->
 func _create_character(slot_index: int, role: String, opacity: float) -> void:
 	var root := Node3D.new()
 	var color: Color = ROLE_COLORS.get(role, EMPTY_COLOR)
-	var accent: Color = ROLE_ACCENTS.get(role, EMPTY_ACCENT)
 	var filled := opacity >= 1.0
+
+	# Try to load the actual 3D model
+	var model_scene = load(PLAYER_MODEL_PATH)
+	if model_scene:
+		var model = model_scene.instantiate()
+		root.add_child(model)
+		# Play Idle animation to get out of T-pose before scaling
+		var anim_player := _find_anim_player(model)
+		if anim_player:
+			_play_idle_anim(anim_player)
+		# Auto-scale to lobby display height using full model bounds
+		var bounds := _compute_node_bounds(model)
+		if bounds.size.y > 0.01:
+			var s := CHAR_TOTAL_HEIGHT / bounds.size.y
+			model.scale *= s  # Multiply to preserve FBX built-in transforms
+			model.position.y = -bounds.position.y * s
+		# Apply role-based tinting
+		var mat := _make_neon_mat(color, opacity, 0.2 if filled else 0.0)
+		_apply_material_recursive(model, mat)
+	else:
+		# Fallback: keep primitive meshes if model fails to load
+		_create_placeholder_character(root, color, opacity, filled)
+
+	# Position at spawn point
+	var spawn_pos: Vector3 = _spawn_points[slot_index].position
+	root.position = spawn_pos
+
+	add_child(root)
+	_player_figures[slot_index] = root
+
+
+func _compute_node_bounds(root: Node) -> AABB:
+	var points: PackedVector3Array = PackedVector3Array()
+	_collect_mesh_points(root, Transform3D.IDENTITY, points)
+	if points.is_empty():
+		return AABB()
+	var combined := AABB(points[0], Vector3.ZERO)
+	for i in range(1, points.size()):
+		combined = combined.expand(points[i])
+	return combined
+
+
+func _collect_mesh_points(node: Node, parent_xform: Transform3D, points: PackedVector3Array) -> void:
+	var xform := parent_xform
+	if node is Node3D:
+		xform = parent_xform * node.transform
+	if node is MeshInstance3D and node.mesh:
+		var aabb: AABB = node.mesh.get_aabb()
+		for i in 8:
+			points.append(xform * aabb.get_endpoint(i))
+	for child in node.get_children():
+		_collect_mesh_points(child, xform, points)
+
+
+func _apply_material_recursive(node: Node, mat: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		node.material_override = mat
+	for child in node.get_children():
+		_apply_material_recursive(child, mat)
+
+
+func _find_anim_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for child in node.get_children():
+		var found := _find_anim_player(child)
+		if found:
+			return found
+	return null
+
+
+func _play_idle_anim(anim_player: AnimationPlayer) -> void:
+	for anim_name in anim_player.get_animation_list():
+		if "idle" in anim_name.to_lower():
+			var anim := anim_player.get_animation(anim_name)
+			if anim:
+				anim.loop_mode = Animation.LOOP_LINEAR
+			anim_player.play(anim_name)
+			anim_player.advance(0)  # Apply first frame immediately
+			return
+
+
+func _create_placeholder_character(root: Node3D, color: Color, opacity: float, filled: bool) -> void:
+	var accent: Color = ROLE_ACCENTS.get("", EMPTY_ACCENT)
 
 	# --- Body (capsule) ---
 	var body := MeshInstance3D.new()
@@ -84,7 +175,7 @@ func _create_character(slot_index: int, role: String, opacity: float) -> void:
 	capsule.height = BODY_HEIGHT
 	body.mesh = capsule
 	body.material_override = _make_neon_mat(color, opacity, 0.2 if filled else 0.0)
-	body.position.y = BODY_HEIGHT / 2.0 + 0.05  # Slight lift off floor
+	body.position.y = BODY_HEIGHT / 2.0 + 0.05
 	root.add_child(body)
 
 	# --- Head (sphere) ---
@@ -94,7 +185,7 @@ func _create_character(slot_index: int, role: String, opacity: float) -> void:
 	sphere.height = HEAD_RADIUS * 2.0
 	head.mesh = sphere
 	head.material_override = _make_neon_mat(color, opacity, 0.25 if filled else 0.0)
-	head.position.y = BODY_HEIGHT + 0.05 + HEAD_RADIUS + 0.02  # On top of body
+	head.position.y = BODY_HEIGHT + 0.05 + HEAD_RADIUS + 0.02
 	root.add_child(head)
 
 	# --- Visor (thin box across the face) ---
@@ -117,13 +208,6 @@ func _create_character(slot_index: int, role: String, opacity: float) -> void:
 			shoulder.material_override = _make_neon_mat(color, opacity, 0.15)
 			shoulder.position = Vector3(side * (BODY_RADIUS + 0.04), BODY_HEIGHT * 0.75 + 0.05, 0)
 			root.add_child(shoulder)
-
-	# Position at spawn point
-	var spawn_pos: Vector3 = _spawn_points[slot_index].position
-	root.position = Vector3(spawn_pos.x, 0, spawn_pos.z)
-
-	add_child(root)
-	_player_figures[slot_index] = root
 
 
 func _make_neon_mat(color: Color, opacity: float, emission_strength: float) -> StandardMaterial3D:
@@ -151,10 +235,32 @@ func _create_label(slot_index: int, text: String, color: Color, opacity: float) 
 	label.no_depth_test = true
 
 	var spawn_pos: Vector3 = _spawn_points[slot_index].position
-	label.position = Vector3(spawn_pos.x, -0.15, spawn_pos.z + 0.45)
+	label.position = Vector3(spawn_pos.x - 0.08, spawn_pos.y - 0.15, spawn_pos.z)
 
 	add_child(label)
 	_player_labels[slot_index] = label
+
+
+func set_host_label_visible(vis: bool) -> void:
+	if _host_label and is_instance_valid(_host_label):
+		_host_label.visible = vis
+
+
+func _create_host_label(slot_index: int) -> void:
+	_host_label = Label3D.new()
+	_host_label.text = "Repo Owner"
+	_host_label.font_size = 24
+	_host_label.pixel_size = 0.005
+	_host_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_host_label.modulate = Color(0.3, 0.9, 1.0, 1.0)
+	_host_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_host_label.no_depth_test = true
+	_host_label.outline_size = 4
+
+	var spawn_pos: Vector3 = _spawn_points[slot_index].position
+	_host_label.position = Vector3(spawn_pos.x, spawn_pos.y + CHAR_TOTAL_HEIGHT + 0.65, spawn_pos.z)
+
+	add_child(_host_label)
 
 
 func _create_particles() -> void:

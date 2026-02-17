@@ -1,10 +1,19 @@
-[gd_scene load_steps=5 format=3 uid="uid://proj001"]
+[gd_scene load_steps=6 format=3 uid="uid://proj001"]
 
 [ext_resource type="Script" path="res://scripts/projectile.gd" id="1_projectile"]
-[ext_resource type="Texture2D" path="res://assets/sprites/projectile_player.png" id="2_tex_proj"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
-size = Vector2(12, 6)
+[sub_resource type="SphereShape3D" id="SphereShape3D_body"]
+radius = 0.15
+
+[sub_resource type="SphereMesh" id="SphereMesh_body"]
+radius = 0.1
+height = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_projectile"]
+albedo_color = Color(0.2, 0.8, 1.0, 1)
+emission_enabled = true
+emission = Color(0.2, 0.8, 1.0, 1)
+emission_energy_multiplier = 3.0
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_projectile"]
 properties/0/path = NodePath(".:position")
@@ -14,14 +23,15 @@ properties/1/path = NodePath(".:direction")
 properties/1/spawn = true
 properties/1/replication_mode = 0
 
-[node name="Projectile" type="Area2D"]
+[node name="Projectile" type="Area3D"]
 script = ExtResource("1_projectile")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_body")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_body")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("2_tex_proj")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_projectile")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_projectile")

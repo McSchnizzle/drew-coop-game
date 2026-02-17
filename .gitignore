@@ -10,3 +10,14 @@ export_presets.cfg
 *.x86_64
 *.pck
 *.dmg
+
+# Screenshots
+Screenshot*.png
+
+# Runtime logs
+debug_errors.log
+godot.log
+
+# Downloaded source archives and extracted originals (keep only final assets)
+game/assets/models/_downloads/
+game/assets/models/scifi_textures/

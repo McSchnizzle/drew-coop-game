@@ -107,14 +107,29 @@ var _enemies_tab_btn: Button
 var _lobby_tab_btn: Button
 var _tab_active_style: StyleBoxFlat
 var _tab_inactive_style: StyleBoxFlat
+var _current_tab: String = "role"
+const _TAB_ORDER: Array[String] = ["role", "enemies", "lobby"]
 
 # Enemies bestiary panel
 var _enemies_panel: Control
 
 var _glass_shader: Shader
 
+# On-screen keyboard for controller name entry
+var _onscreen_kb: Control
+var _kb_display: Label
+var _kb_target: LineEdit
+var _kb_first_key: Button
+var _kb_caps: bool = false
+var _kb_hints: Label
+
 
 func _ready() -> void:
+	# Always show the mouse cursor when entering the lobby
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+	_ensure_ui_joypad_mappings()
+
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	start_button.pressed.connect(_on_start_pressed)
@@ -139,6 +154,7 @@ func _ready() -> void:
 	_setup_theme()
 	_build_character_select()
 	_build_enemies_panel()
+	_build_onscreen_keyboard()
 
 	if NetworkManager.is_returning_to_lobby:
 		_setup_returning_lobby()
@@ -149,6 +165,93 @@ func _ready() -> void:
 	_update_role_buttons()
 	_rebuild_player_stage()
 	_load_version()
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventJoypadButton and event.pressed):
+		return
+
+	# On-screen keyboard takes priority when visible.
+	if _onscreen_kb and _onscreen_kb.visible:
+		if event.button_index == JOY_BUTTON_A:
+			var focused := get_viewport().gui_get_focus_owner()
+			if focused is BaseButton and not focused.disabled:
+				focused.emit_signal("pressed")
+			elif _kb_first_key:
+				_kb_first_key.grab_focus()
+		elif event.button_index == JOY_BUTTON_X:
+			_kb_backspace()
+		elif event.button_index == JOY_BUTTON_LEFT_STICK:
+			_kb_toggle_caps()
+		elif event.button_index == JOY_BUTTON_Y or event.button_index == JOY_BUTTON_START:
+			_hide_onscreen_keyboard()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Normal lobby input.
+	if event.button_index == JOY_BUTTON_RIGHT_SHOULDER:
+		_next_tab()
+	elif event.button_index == JOY_BUTTON_LEFT_SHOULDER:
+		_prev_tab()
+	elif event.button_index == JOY_BUTTON_A:
+		_handle_gamepad_accept()
+		if is_inside_tree():
+			get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	# Smooth right-stick scrolling for enemies panel.
+	if _current_tab == "enemies" and _enemies_panel and _enemies_panel.visible:
+		var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y)
+		if abs(ry) > 0.15:
+			var scroll = _enemies_panel.get_node_or_null("EnemyScroll") as ScrollContainer
+			if scroll:
+				scroll.scroll_vertical += int(ry * 400.0 * delta)
+
+
+func _handle_gamepad_accept() -> void:
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused and focused.is_visible_in_tree():
+		if focused is BaseButton and not focused.disabled:
+			focused.emit_signal("pressed")
+		elif focused is LineEdit:
+			_show_onscreen_keyboard(focused)
+		return
+	# No control has focus — set it for the current tab.
+	_grab_tab_default_focus()
+
+
+func _grab_tab_default_focus() -> void:
+	match _current_tab:
+		"role":
+			if _striker_select_btn and _striker_select_btn.is_visible_in_tree() and not _striker_select_btn.disabled:
+				_striker_select_btn.grab_focus()
+			elif _engineer_select_btn and _engineer_select_btn.is_visible_in_tree() and not _engineer_select_btn.disabled:
+				_engineer_select_btn.grab_focus()
+		"lobby":
+			if start_button.visible and start_button.is_visible_in_tree():
+				start_button.grab_focus()
+			elif host_button.visible and host_button.is_visible_in_tree():
+				host_button.grab_focus()
+
+
+func _next_tab() -> void:
+	var idx := _TAB_ORDER.find(_current_tab)
+	idx = (idx + 1) % _TAB_ORDER.size()
+	_switch_to_tab(_TAB_ORDER[idx])
+
+
+func _prev_tab() -> void:
+	var idx := _TAB_ORDER.find(_current_tab)
+	idx = (idx - 1 + _TAB_ORDER.size()) % _TAB_ORDER.size()
+	_switch_to_tab(_TAB_ORDER[idx])
+
+
+func _switch_to_tab(tab: String) -> void:
+	match tab:
+		"role": _switch_to_role_tab()
+		"enemies": _switch_to_enemies_tab()
+		"lobby": _switch_to_lobby_tab()
 
 
 func _setup_fresh_lobby() -> void:
@@ -194,6 +297,10 @@ func _setup_returning_lobby() -> void:
 		status_label.text = "Connected. Waiting for host to start..."
 
 	_switch_to_lobby_tab()
+	if start_button.visible:
+		_focus_after_frame(start_button)
+	else:
+		_focus_after_frame(leave_button)
 
 
 # ── Theme Setup ───────────────────────────────────────────────────────────────
@@ -216,11 +323,16 @@ func _setup_theme() -> void:
 	var btn_dis := _make_stylebox(
 		Color(1, 1, 1, 0.03), Color(1, 1, 1, 0.05), 1, 12)
 
+	var act_f := _make_stylebox(
+		Color(1, 1, 1, 0.10), Color(1, 1, 1, 0.30), 2, 12,
+		Color(1, 1, 1, 0.08), 6)
+
 	for btn: Button in [host_button, join_button, copy_button]:
 		btn.add_theme_stylebox_override("normal", act_n)
 		btn.add_theme_stylebox_override("hover", act_h)
 		btn.add_theme_stylebox_override("pressed", act_p)
 		btn.add_theme_stylebox_override("disabled", btn_dis)
+		btn.add_theme_stylebox_override("focus", act_f)
 		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
 		btn.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
 		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
@@ -246,6 +358,10 @@ func _setup_theme() -> void:
 	start_button.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
 	start_button.add_theme_font_size_override("font_size", 18)
 	start_button.custom_minimum_size.y = 50
+	var start_f := _make_stylebox(
+		Color(0.08, 0.55, 0.75, 0.35), Color(0.15, 0.70, 0.95, 0.65),
+		2, 14, Color(0.10, 0.55, 0.80, 0.15), 10)
+	start_button.add_theme_stylebox_override("focus", start_f)
 
 	# ── Role buttons (hidden, kept for refs) ──
 	_striker_active_style = _make_stylebox(
@@ -308,6 +424,10 @@ func _setup_theme() -> void:
 	leave_button.add_theme_color_override("font_hover_color", Color(1.0, 0.40, 0.40, 1))
 	leave_button.add_theme_font_size_override("font_size", 14)
 	leave_button.custom_minimum_size.y = 38
+	var leave_f := _make_stylebox(
+		Color(0.80, 0.15, 0.15, 0.12), Color(0.85, 0.20, 0.20, 0.45),
+		2, 12, Color(0.70, 0.12, 0.12, 0.06), 4)
+	leave_button.add_theme_stylebox_override("focus", leave_f)
 
 
 func _make_stylebox(bg: Color, border: Color, border_w: int, corner_r: int,
@@ -399,6 +519,7 @@ func _update_role_buttons() -> void:
 func _switch_to_role_tab() -> void:
 	if not _char_select:
 		return
+	_current_tab = "role"
 	_char_select.visible = true
 	if _enemies_panel:
 		_enemies_panel.visible = false
@@ -407,11 +528,16 @@ func _switch_to_role_tab() -> void:
 		hud.visible = false
 	_update_tab_styles("role")
 	_update_character_select_cards()
+	if _lobby_stage_3d:
+		_lobby_stage_3d.set_host_label_visible(false)
+	if _striker_select_btn:
+		_focus_after_frame(_striker_select_btn)
 
 
 func _switch_to_lobby_tab() -> void:
 	if not _char_select:
 		return
+	_current_tab = "lobby"
 	_char_select.visible = false
 	if _enemies_panel:
 		_enemies_panel.visible = false
@@ -419,11 +545,23 @@ func _switch_to_lobby_tab() -> void:
 	if hud:
 		hud.visible = true
 	_update_tab_styles("lobby")
+	if _lobby_stage_3d:
+		_lobby_stage_3d.set_host_label_visible(true)
+
+	# Set up focus neighbors so the stick can navigate between panels.
+	_setup_lobby_focus()
+
+	# Give focus to a lobby button so the controller can navigate.
+	if start_button.visible:
+		_focus_after_frame(start_button)
+	elif host_button.visible:
+		_focus_after_frame(host_button)
 
 
 func _switch_to_enemies_tab() -> void:
 	if not _enemies_panel:
 		return
+	_current_tab = "enemies"
 	_enemies_panel.visible = true
 	_refresh_enemies_panel()
 	if _char_select:
@@ -432,6 +570,39 @@ func _switch_to_enemies_tab() -> void:
 	if hud:
 		hud.visible = false
 	_update_tab_styles("enemies")
+	if _lobby_stage_3d:
+		_lobby_stage_3d.set_host_label_visible(false)
+
+
+func _setup_lobby_focus() -> void:
+	# Build ordered list of visible+focusable controls in the action panel.
+	var right_controls: Array[Control] = []
+	if host_button.visible:
+		right_controls.append(host_button)
+	if join_button.get_parent().visible:
+		right_controls.append(address_input)
+		right_controls.append(join_button)
+	if room_code_container.visible:
+		right_controls.append(copy_button)
+	if start_button.visible:
+		right_controls.append(start_button)
+	if leave_button.visible:
+		right_controls.append(leave_button)
+
+	# Set up vertical focus neighbors in the right column.
+	for i in range(right_controls.size()):
+		var ctrl: Control = right_controls[i]
+		if i > 0:
+			ctrl.focus_neighbor_top = ctrl.get_path_to(right_controls[i - 1])
+		if i < right_controls.size() - 1:
+			ctrl.focus_neighbor_bottom = ctrl.get_path_to(right_controls[i + 1])
+
+	# Connect left column (name_input) to right column.
+	if right_controls.size() > 0:
+		var first_right: Control = right_controls[0]
+		name_input.focus_neighbor_right = name_input.get_path_to(first_right)
+		name_input.focus_neighbor_bottom = name_input.get_path_to(first_right)
+		first_right.focus_neighbor_left = first_right.get_path_to(name_input)
 
 
 func _update_tab_styles(active: String) -> void:
@@ -634,34 +805,57 @@ func _build_character_select() -> void:
 	_engineer_select_btn.pressed.connect(_on_select_engineer)
 	_style_button_accent(_engineer_select_btn, engineer_color)
 
+	# Focus neighbors between role select buttons for controller navigation.
+	_striker_select_btn.focus_neighbor_right = _striker_select_btn.get_path_to(_engineer_select_btn)
+	_engineer_select_btn.focus_neighbor_left = _engineer_select_btn.get_path_to(_striker_select_btn)
+
 	# -- Tab bar (added after CharacterSelect so it draws on top) --
 	var tab_bar := HBoxContainer.new()
 	tab_bar.anchor_left = 0.5
 	tab_bar.anchor_right = 0.5
 	tab_bar.offset_top = 68
-	tab_bar.offset_left = -225
-	tab_bar.offset_right = 225
+	tab_bar.offset_left = -275
+	tab_bar.offset_right = 275
 	tab_bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	tab_bar.add_theme_constant_override("separation", 0)
 	add_child(tab_bar)
+
+	# LB hint (left of tabs)
+	var lb_label := Label.new()
+	lb_label.text = "LB"
+	lb_label.add_theme_font_size_override("font_size", 12)
+	lb_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	lb_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tab_bar.add_child(lb_label)
 
 	_role_tab_btn = Button.new()
 	_role_tab_btn.text = "Choose Role"
 	_role_tab_btn.add_theme_font_size_override("font_size", 16)
 	_role_tab_btn.pressed.connect(_switch_to_role_tab)
+	_role_tab_btn.focus_mode = Control.FOCUS_NONE
 	tab_bar.add_child(_role_tab_btn)
 
 	_enemies_tab_btn = Button.new()
 	_enemies_tab_btn.text = "Enemies"
 	_enemies_tab_btn.add_theme_font_size_override("font_size", 16)
 	_enemies_tab_btn.pressed.connect(_switch_to_enemies_tab)
+	_enemies_tab_btn.focus_mode = Control.FOCUS_NONE
 	tab_bar.add_child(_enemies_tab_btn)
 
 	_lobby_tab_btn = Button.new()
 	_lobby_tab_btn.text = "Lobby"
 	_lobby_tab_btn.add_theme_font_size_override("font_size", 16)
 	_lobby_tab_btn.pressed.connect(_switch_to_lobby_tab)
+	_lobby_tab_btn.focus_mode = Control.FOCUS_NONE
 	tab_bar.add_child(_lobby_tab_btn)
+
+	# RB hint (right of tabs)
+	var rb_label := Label.new()
+	rb_label.text = "RB"
+	rb_label.add_theme_font_size_override("font_size", 12)
+	rb_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	rb_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tab_bar.add_child(rb_label)
 
 	# Apply hover/pressed styles to all tabs
 	var tab_hover := StyleBoxFlat.new()
@@ -800,6 +994,11 @@ func _style_button_accent(btn: Button, accent: Color) -> void:
 	btn.add_theme_color_override("font_disabled_color", TEXT_DISABLED)
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.custom_minimum_size.y = 48
+	var focus_style := _make_stylebox(
+		Color(accent.r, accent.g, accent.b, 0.18),
+		Color(accent.r, accent.g, accent.b, 0.65), 2, 14,
+		Color(accent.r, accent.g, accent.b, 0.10), 6)
+	btn.add_theme_stylebox_override("focus", focus_style)
 
 
 # ── Enemy Bestiary ─────────────────────────────────────────────────────────────
@@ -1056,6 +1255,9 @@ func _on_host_pressed() -> void:
 	leave_button.visible = true
 	_rebuild_player_stage()
 
+	# Give focus to start button so controller highlight stays visible.
+	_focus_after_frame(start_button)
+
 
 func _on_join_pressed() -> void:
 	var input_text := address_input.text.strip_edges()
@@ -1194,6 +1396,192 @@ func _load_version() -> void:
 		version_label.text = "v%s" % ver
 	else:
 		version_label.text = ""
+
+
+func _focus_after_frame(ctrl: Control) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(ctrl) and ctrl.is_visible_in_tree():
+		ctrl.grab_focus()
+
+
+func _ensure_ui_joypad_mappings() -> void:
+	# Godot's built-in ui_* actions don't include gamepad by default.
+	# Add A button to ui_accept and left stick to ui navigation.
+	var accept_ev := InputEventJoypadButton.new()
+	accept_ev.button_index = JOY_BUTTON_A
+	accept_ev.device = -1
+	InputMap.action_add_event("ui_accept", accept_ev)
+
+	var cancel_ev := InputEventJoypadButton.new()
+	cancel_ev.button_index = JOY_BUTTON_B
+	cancel_ev.device = -1
+	InputMap.action_add_event("ui_cancel", cancel_ev)
+
+	var axes := [
+		["ui_up", JOY_AXIS_LEFT_Y, -1.0],
+		["ui_down", JOY_AXIS_LEFT_Y, 1.0],
+		["ui_left", JOY_AXIS_LEFT_X, -1.0],
+		["ui_right", JOY_AXIS_LEFT_X, 1.0],
+	]
+	for mapping in axes:
+		var ev := InputEventJoypadMotion.new()
+		ev.axis = mapping[1]
+		ev.axis_value = mapping[2]
+		ev.device = -1
+		InputMap.action_add_event(mapping[0], ev)
+
+
+# ── On-Screen Keyboard ─────────────────────────────────────────────────────────
+
+func _build_onscreen_keyboard() -> void:
+	_onscreen_kb = Control.new()
+	_onscreen_kb.name = "OnscreenKeyboard"
+	_onscreen_kb.visible = false
+	_onscreen_kb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_onscreen_kb)
+
+	# Dark overlay
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0.0, 0.0, 0.0, 0.7)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onscreen_kb.add_child(overlay)
+
+	# Center panel
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -230
+	panel.offset_top = -150
+	panel.offset_right = 230
+	panel.offset_bottom = 150
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.06, 0.14, 0.95)
+	panel_style.border_color = Color(1, 1, 1, 0.15)
+	panel_style.set_border_width_all(1)
+	panel_style.set_corner_radius_all(12)
+	panel_style.content_margin_left = 16
+	panel_style.content_margin_top = 12
+	panel_style.content_margin_right = 16
+	panel_style.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", panel_style)
+	_onscreen_kb.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	# Current text display
+	_kb_display = Label.new()
+	_kb_display.text = ""
+	_kb_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kb_display.add_theme_font_size_override("font_size", 22)
+	_kb_display.add_theme_color_override("font_color", TEXT_PRIMARY)
+	vbox.add_child(_kb_display)
+
+	var sep := HSeparator.new()
+	vbox.add_child(sep)
+
+	# Key grid (10 columns × 4 rows)
+	var grid := GridContainer.new()
+	grid.columns = 10
+	grid.add_theme_constant_override("h_separation", 3)
+	grid.add_theme_constant_override("v_separation", 3)
+	vbox.add_child(grid)
+
+	var key_style := _make_stylebox(
+		Color(1, 1, 1, 0.08), Color(1, 1, 1, 0.15), 1, 6)
+	var key_focus := _make_stylebox(
+		Color(0.2, 0.6, 1.0, 0.20), Color(0.3, 0.7, 1.0, 0.60), 2, 6,
+		Color(0.2, 0.6, 1.0, 0.10), 4)
+
+	var rows := [
+		["1","2","3","4","5","6","7","8","9","0"],
+		["Q","W","E","R","T","Y","U","I","O","P"],
+		["A","S","D","F","G","H","J","K","L","←"],
+		["Z","X","C","V","B","N","M",".","SP","OK"],
+	]
+
+	var first := true
+	for row in rows:
+		for key in row:
+			var btn := Button.new()
+			if key == "←":
+				btn.text = "←"
+				btn.pressed.connect(_kb_backspace)
+			elif key == "OK":
+				btn.text = "OK"
+				btn.pressed.connect(_hide_onscreen_keyboard)
+			elif key == "SP":
+				btn.text = "SP"
+				btn.pressed.connect(_on_kb_char.bind(" "))
+			else:
+				btn.text = key
+				btn.pressed.connect(_on_kb_char.bind(key))
+			btn.custom_minimum_size = Vector2(38, 34)
+			btn.add_theme_stylebox_override("normal", key_style)
+			btn.add_theme_stylebox_override("focus", key_focus)
+			btn.add_theme_font_size_override("font_size", 14)
+			btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+			grid.add_child(btn)
+			if first:
+				_kb_first_key = btn
+				first = false
+
+	# Hint labels
+	_kb_hints = Label.new()
+	_kb_hints.text = "A: Type   X: Delete   Y: Done   L3: CAPS"
+	_kb_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kb_hints.add_theme_font_size_override("font_size", 12)
+	_kb_hints.add_theme_color_override("font_color", TEXT_SECONDARY)
+	vbox.add_child(_kb_hints)
+
+
+func _show_onscreen_keyboard(target: LineEdit) -> void:
+	_kb_target = target
+	_kb_display.text = target.text if not target.text.is_empty() else ""
+	_onscreen_kb.visible = true
+	# Hide lobby controls so focus stays on keyboard keys.
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = false
+	if _kb_first_key:
+		_kb_first_key.grab_focus()
+
+
+func _hide_onscreen_keyboard() -> void:
+	if _kb_target and is_instance_valid(_kb_target):
+		_kb_target.text = _kb_display.text
+		_kb_target.text_changed.emit(_kb_display.text)
+	_onscreen_kb.visible = false
+	_kb_target = null
+	# Restore lobby UI.
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = true
+	_grab_tab_default_focus()
+
+
+func _on_kb_char(c: String) -> void:
+	var max_len: int = 12
+	if _kb_target and _kb_target.max_length > 0:
+		max_len = _kb_target.max_length
+	if _kb_display.text.length() < max_len:
+		var ch := c.to_upper() if _kb_caps else c.to_lower()
+		_kb_display.text += ch
+
+
+func _kb_backspace() -> void:
+	if _kb_display.text.length() > 0:
+		_kb_display.text = _kb_display.text.substr(0, _kb_display.text.length() - 1)
+
+
+func _kb_toggle_caps() -> void:
+	_kb_caps = not _kb_caps
+	if _kb_hints:
+		if _kb_caps:
+			_kb_hints.text = "A: Type   X: Delete   Y: Done   L3: caps"
+		else:
+			_kb_hints.text = "A: Type   X: Delete   Y: Done   L3: CAPS"
 
 
 func _update_lobby_status() -> void:

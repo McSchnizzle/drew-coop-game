@@ -6,7 +6,7 @@ extends Node
 const HEALING_AMOUNT: int = 50
 
 
-func activate(player: CharacterBody2D) -> void:
+func activate(player: CharacterBody3D) -> void:
 	var players := get_tree().get_nodes_in_group("players")
 	for p in players:
 		if not p._is_alive:
@@ -17,7 +17,7 @@ func activate(player: CharacterBody2D) -> void:
 			p.health = HEALING_AMOUNT
 			p._bleedout_timer = 0.0
 			# Re-enable collision
-			var collision = p.get_node_or_null("CollisionShape2D")
+			var collision = p.get_node_or_null("CollisionShape3D")
 			if collision:
 				collision.set_deferred("disabled", false)
 			# Restore color on ALL peers via RPC

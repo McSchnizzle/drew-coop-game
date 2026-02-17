@@ -6,9 +6,9 @@ extends Node
 var role: String = "striker"
 
 const SUPER_CHARGE_MAX: float = 100.0
-const SUPER_CHARGE_PER_PROJECTILE_HIT: float = 10.0
-const SUPER_CHARGE_PER_MELEE_HIT: float = 15.0
-const SUPER_CHARGE_PER_TURRET_HIT: float = 5.0
+const SUPER_CHARGE_PER_PROJECTILE_HIT: float = 3.0
+const SUPER_CHARGE_PER_MELEE_HIT: float = 6.0
+const SUPER_CHARGE_PER_TURRET_HIT: float = 2.0
 
 # Passive bonuses
 const STRIKER_DAMAGE_BONUS: float = 0.15
@@ -37,7 +37,7 @@ func _physics_process(delta: float) -> void:
 		if not player.has_status("ability_disabled"):
 			var ability_node = get_node_or_null("Ability")
 			if ability_node:
-				ability_node.activate(player.global_position, player._facing)
+				ability_node.activate(player.global_position, player.input_aim_dir)
 				player.ability_cooldown = ability_node.COOLDOWN
 
 	# Super activation

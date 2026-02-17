@@ -1,11 +1,11 @@
 ## Turret entity -- auto-targets nearest enemy and fires projectiles.
 ## Spawned by Engineer's Deploy Turret ability. Server-authoritative.
-extends StaticBody2D
+extends StaticBody3D
 
 const TURRET_HP: int = 5
 const TURRET_FIRE_RATE: float = 0.8
 const TURRET_DAMAGE: int = 1
-const TURRET_RANGE: float = 250.0
+const TURRET_RANGE: float = 12.5  # 250px / 20
 const TURRET_LIFETIME: float = 10.0
 
 var turret_id: int = 0
@@ -19,6 +19,7 @@ var _projectile_scene: PackedScene = null
 
 
 func _ready() -> void:
+	add_to_group("turrets")
 	_projectile_scene = load("res://scenes/projectile.tscn")
 
 
@@ -58,17 +59,19 @@ func _destroy() -> void:
 	queue_free()
 
 
-func _fire_at(target: Node2D) -> void:
+func _fire_at(target: Node3D) -> void:
 	if _projectile_scene == null:
 		return
 
-	var dir := (target.global_position - global_position).normalized()
+	var dir := (target.global_position - global_position)
+	dir.y = 0
+	dir = dir.normalized()
 	var projectile = _projectile_scene.instantiate()
 	projectile.direction = dir
 	projectile.damage = TURRET_DAMAGE
 	projectile.owner_id = owner_id
 	projectile.name = "TurretProj_%d" % (randi() % 1000000)
-	projectile.position = global_position + dir * 16.0
+	projectile.position = global_position + dir * 0.8  # 16px / 20 = 0.8 units
 
 	var projectiles_node = get_tree().current_scene.get_node("Projectiles")
 	if projectiles_node:
@@ -84,12 +87,12 @@ func _fire_at(target: Node2D) -> void:
 			break
 
 
-func _find_nearest_enemy() -> Node2D:
+func _find_nearest_enemy() -> Node3D:
 	var enemies := get_tree().get_nodes_in_group("enemies")
-	var nearest: Node2D = null
+	var nearest: Node3D = null
 	var nearest_dist: float = INF
 	for enemy in enemies:
-		if not enemy is Node2D:
+		if not enemy is Node3D:
 			continue
 		var dist := global_position.distance_to(enemy.global_position)
 		if dist <= TURRET_RANGE and dist < nearest_dist:

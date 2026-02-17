@@ -1,8 +1,7 @@
-[gd_scene load_steps=22 format=3 uid="uid://game001"]
+[gd_scene load_steps=26 format=3 uid="uid://game001"]
 
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
-[ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="3_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/projectile.tscn" id="4_projectile"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_merge_conflict.tscn" id="5_enemy_mc"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_hallucination.tscn" id="6_enemy_hall"]
@@ -12,98 +11,130 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/boss_kernel_panic.tscn" id="18_boss_kp"]
 [ext_resource type="PackedScene" path="res://scenes/turret.tscn" id="10_turret"]
 [ext_resource type="Script" path="res://scripts/wave_manager.gd" id="11_wave"]
-[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_far.png" id="12_bg_far"]
-[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_mid.png" id="13_bg_mid"]
-[ext_resource type="Texture2D" path="res://assets/backgrounds/bg_near.png" id="14_bg_near"]
-[ext_resource type="Texture2D" path="res://assets/tiles/floor_tile.png" id="15_floor"]
-[ext_resource type="Texture2D" path="res://assets/tiles/wall_tile.png" id="16_wall"]
-[ext_resource type="Texture2D" path="res://assets/tiles/ceiling_tile.png" id="17_ceiling"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
-size = Vector2(1200, 32)
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.02, 0.02, 0.06, 1)
+sky_horizon_color = Color(0.05, 0.05, 0.12, 1)
+ground_bottom_color = Color(0.02, 0.02, 0.04, 1)
+ground_horizon_color = Color(0.05, 0.05, 0.12, 1)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
-size = Vector2(32, 700)
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ceiling"]
-size = Vector2(1200, 32)
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_source = 2
+ambient_light_color = Color(0.15, 0.15, 0.25, 1)
+ambient_light_energy = 0.4
+glow_enabled = true
+glow_intensity = 0.4
+glow_bloom = 0.1
+fog_enabled = true
+fog_light_color = Color(0.05, 0.05, 0.1, 1)
+fog_density = 0.01
 
-[node name="Game" type="Node2D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(62, 1, 32)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(62, 32)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.08, 0.08, 0.12, 1)
+emission_enabled = true
+emission = Color(0.02, 0.04, 0.08, 1)
+emission_energy_multiplier = 0.3
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_north_south_wall"]
+size = Vector3(62, 4, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_north_south_wall"]
+size = Vector3(62, 4, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_east_west_wall"]
+size = Vector3(1, 4, 32)
+
+[sub_resource type="BoxMesh" id="BoxMesh_east_west_wall"]
+size = Vector3(1, 4, 32)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall"]
+albedo_color = Color(0.1, 0.1, 0.15, 1)
+emission_enabled = true
+emission = Color(0.05, 0.1, 0.2, 1)
+emission_energy_multiplier = 0.5
+
+[node name="Game" type="Node3D"]
 script = ExtResource("1_game")
 
-[node name="ParallaxFar" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.1, 0.1)
-repeat_size = Vector2(1920, 0)
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
 
-[node name="Sprite2D" type="Sprite2D" parent="ParallaxFar"]
-texture = ExtResource("12_bg_far")
-centered = false
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 10, 0)
+light_color = Color(0.6, 0.65, 0.8, 1)
+light_energy = 0.6
+shadow_enabled = true
 
-[node name="ParallaxMid" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.3, 0.3)
-repeat_size = Vector2(1920, 0)
+[node name="Arena" type="Node3D" parent="."]
 
-[node name="Sprite2D" type="Sprite2D" parent="ParallaxMid"]
-texture = ExtResource("13_bg_mid")
-centered = false
+[node name="Floor" type="StaticBody3D" parent="Arena"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 
-[node name="ParallaxNear" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.6, 0.6)
-repeat_size = Vector2(1920, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Floor"]
+shape = SubResource("BoxShape3D_floor")
 
-[node name="Sprite2D" type="Sprite2D" parent="ParallaxNear"]
-texture = ExtResource("14_bg_near")
-centered = false
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/Floor"]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
 
-[node name="Level" type="Node2D" parent="."]
+[node name="NorthWall" type="StaticBody3D" parent="Arena"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -16)
 
-[node name="Floor" type="StaticBody2D" parent="Level"]
-position = Vector2(600, 600)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/NorthWall"]
+shape = SubResource("BoxShape3D_north_south_wall")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Floor"]
-shape = SubResource("RectangleShape2D_floor")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/NorthWall"]
+mesh = SubResource("BoxMesh_north_south_wall")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall")
 
-[node name="Sprite2D" type="Sprite2D" parent="Level/Floor"]
-scale = Vector2(18.75, 1)
-texture = ExtResource("15_floor")
+[node name="SouthWall" type="StaticBody3D" parent="Arena"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 16)
 
-[node name="LeftWall" type="StaticBody2D" parent="Level"]
-position = Vector2(0, 250)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/SouthWall"]
+shape = SubResource("BoxShape3D_north_south_wall")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/LeftWall"]
-shape = SubResource("RectangleShape2D_wall")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/SouthWall"]
+mesh = SubResource("BoxMesh_north_south_wall")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall")
 
-[node name="Sprite2D" type="Sprite2D" parent="Level/LeftWall"]
-scale = Vector2(1, 10.9375)
-texture = ExtResource("16_wall")
+[node name="EastWall" type="StaticBody3D" parent="Arena"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31, 2, 0)
 
-[node name="RightWall" type="StaticBody2D" parent="Level"]
-position = Vector2(1200, 250)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/EastWall"]
+shape = SubResource("BoxShape3D_east_west_wall")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/RightWall"]
-shape = SubResource("RectangleShape2D_wall")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/EastWall"]
+mesh = SubResource("BoxMesh_east_west_wall")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall")
 
-[node name="Sprite2D" type="Sprite2D" parent="Level/RightWall"]
-scale = Vector2(1, 10.9375)
-texture = ExtResource("16_wall")
+[node name="WestWall" type="StaticBody3D" parent="Arena"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31, 2, 0)
 
-[node name="Ceiling" type="StaticBody2D" parent="Level"]
-position = Vector2(600, -100)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/WestWall"]
+shape = SubResource("BoxShape3D_east_west_wall")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/Ceiling"]
-shape = SubResource("RectangleShape2D_ceiling")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/WestWall"]
+mesh = SubResource("BoxMesh_east_west_wall")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall")
 
-[node name="Sprite2D" type="Sprite2D" parent="Level/Ceiling"]
-scale = Vector2(18.75, 1)
-texture = ExtResource("17_ceiling")
+[node name="Players" type="Node3D" parent="."]
 
-[node name="Players" type="Node2D" parent="."]
+[node name="Enemies" type="Node3D" parent="."]
 
-[node name="Enemies" type="Node2D" parent="."]
+[node name="Projectiles" type="Node3D" parent="."]
 
-[node name="Projectiles" type="Node2D" parent="."]
-
-[node name="Effects" type="Node2D" parent="."]
+[node name="Effects" type="Node3D" parent="."]
 
 [node name="WaveManager" type="Node" parent="."]
 script = ExtResource("11_wave")
@@ -113,7 +144,7 @@ _spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
 spawn_path = NodePath("../Players")
 
 [node name="EnemySpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("res://scenes/enemy.tscn", "res://scenes/enemies/enemy_merge_conflict.tscn", "res://scenes/enemies/enemy_hallucination.tscn", "res://scenes/enemies/enemy_context_rot.tscn", "res://scenes/enemies/enemy_dependency_hell.tscn", "res://scenes/enemies/boss_kernel_panic.tscn")
+_spawnable_scenes = PackedStringArray("res://scenes/enemies/enemy_merge_conflict.tscn", "res://scenes/enemies/enemy_hallucination.tscn", "res://scenes/enemies/enemy_context_rot.tscn", "res://scenes/enemies/enemy_dependency_hell.tscn", "res://scenes/enemies/boss_kernel_panic.tscn")
 spawn_path = NodePath("../Enemies")
 
 [node name="ProjectileSpawner" type="MultiplayerSpawner" parent="."]
@@ -174,6 +205,19 @@ offset_right = 200.0
 offset_bottom = 152.0
 text = "Super: 0%"
 
+[node name="Crosshair" type="ColorRect" parent="UI/HUD"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+color = Color(1, 1, 1, 0.8)
+
 [node name="EndScreen" type="Panel" parent="UI/HUD"]
 visible = false
 layout_mode = 1
@@ -214,9 +258,14 @@ text = "Wave 1 | Time: 0s"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="FlavorLabel" type="Label" parent="UI/HUD/EndScreen/VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="Spacer" type="Control" parent="UI/HUD/EndScreen/VBoxContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 20)
+custom_minimum_size = Vector2(0, 12)
 
 [node name="ReturnButton" type="Button" parent="UI/HUD/EndScreen/VBoxContainer"]
 layout_mode = 2
@@ -230,15 +279,16 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -260.0
-offset_top = -145.0
+offset_top = -165.0
 grow_horizontal = 0
 grow_vertical = 0
-text = "A/D  Move  |  Stick
-Space/W  Jump  |  A
-J  Shoot  |  RT
+text = "WASD  Move  |  L Stick
+Mouse  Look/Aim  |  R Stick
+LMB  Shoot  |  RT
 K  Melee  |  X
-L  Ability  |  LT
+RMB  Ability  |  LT
 E  Super  |  LB
 Shift  Sprint  |  RB
-F  Revive  |  Y"
+F  Revive  |  Y
+ESC  Release Mouse"
 horizontal_alignment = 2

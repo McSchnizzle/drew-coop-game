@@ -1,34 +1,45 @@
 ## Hallucination enemy — disguises as a health pickup, reveals and chases when triggered.
-## Reveal triggers: player within 80px, takes any damage, or Weak Point Scan (stuns 2s).
+## Reveal triggers: player within 4.0 units, takes any damage, or Weak Point Scan (stuns 2s).
 extends "res://scripts/enemies/enemy_base.gd"
 
 const HALL_HP: int = 2
-const HALL_CHASE_SPEED: float = 70.0
-const HALL_REVEAL_RANGE: float = 80.0
+const HALL_CHASE_SPEED: float = 3.5  # 70px / 20
+const HALL_REVEAL_RANGE: float = 4.0  # 80px / 20
 const HALL_CONTACT_DMG: int = 15
-const HALL_DISGUISED_SIZE: Vector2 = Vector2(24, 24)
-const HALL_REVEALED_SIZE: Vector2 = Vector2(40, 40)
+const HALL_DISGUISED_SCALE: float = 0.6
+const HALL_REVEALED_SCALE: float = 1.0
 const HALL_REVEAL_TIME: float = 0.3
 const HALL_SCAN_STUN: float = 2.0
 
 const COLOR_DISGUISED: Color = Color(0.2, 0.9, 0.2)
 const COLOR_REVEALED: Color = Color(0.6, 0.1, 0.8)
-const TEX_DISGUISED: String = "res://assets/sprites/enemies/enemy_hallucination_disguised.png"
-const TEX_REVEALED: String = "res://assets/sprites/enemies/enemy_hallucination_revealed.png"
 
 var is_disguised: bool = true
 var _reveal_timer: float = 0.0
 var _was_scan_revealed: bool = false
 var _chase_speed: float = HALL_CHASE_SPEED
+var _last_disguised: bool = true  # tracks synced value for client visual update
 
 
 func _ready() -> void:
 	super._ready()
+	_load_glb_model("res://assets/models/monster_slime.fbx", 2.0)  # Match revealed capsule height, not disguised sphere
 	health = HALL_HP
 	speed = 0.0
 	contact_damage = HALL_CONTACT_DMG
 	_current_state = State.IDLE
 	_update_visual_disguised()
+
+
+func _process(_delta: float) -> void:
+	super._process(_delta)
+	# Client-side: watch for synced is_disguised to change and update visual
+	if not multiplayer.is_server() and is_disguised != _last_disguised:
+		_last_disguised = is_disguised
+		if is_disguised:
+			_update_visual_disguised()
+		else:
+			_update_visual_revealed()
 
 
 func _state_idle(delta: float) -> void:
@@ -51,6 +62,7 @@ func _check_reveal_trigger() -> void:
 
 func _start_reveal(from_scan: bool) -> void:
 	is_disguised = false
+	_last_disguised = false
 	_was_scan_revealed = from_scan
 	_reveal_timer = HALL_REVEAL_TIME
 	_update_visual_revealed()
@@ -91,36 +103,44 @@ func reveal_from_scan() -> void:
 
 
 func _update_visual_disguised() -> void:
-	var sprite = get_node_or_null("Sprite2D") as Sprite2D
-	if sprite:
-		sprite.texture = load(TEX_DISGUISED)
-		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	var label = get_node_or_null("TypeLabel") as Label
-	if label:
-		label.text = "+"
+	# Hide the real GLB model, show the placeholder as a green sphere
+	if _model_node:
+		_model_node.visible = false
+	var placeholder = get_node_or_null("EnemyModel") as MeshInstance3D
+	if placeholder:
+		placeholder.visible = true
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.6
+		sphere.height = 1.2
+		placeholder.mesh = sphere
+		placeholder.scale = Vector3(HALL_DISGUISED_SCALE, HALL_DISGUISED_SCALE, HALL_DISGUISED_SCALE)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = COLOR_DISGUISED
+		mat.emission_enabled = true
+		mat.emission = COLOR_DISGUISED
+		mat.emission_energy_multiplier = 0.5
+		placeholder.material_override = mat
 
 
 func _update_visual_revealed() -> void:
-	var half := HALL_REVEALED_SIZE / 2.0
-	var sprite = get_node_or_null("Sprite2D") as Sprite2D
-	if sprite:
-		sprite.texture = load(TEX_REVEALED)
-		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	var label = get_node_or_null("TypeLabel") as Label
-	if label:
-		label.text = "!"
-		label.offset_left = -half.x
-		label.offset_top = -half.y
-		label.offset_right = half.x
-		label.offset_bottom = half.y
+	# Show the real GLB model, hide the placeholder
+	if _model_node:
+		_model_node.visible = true
+	var placeholder = get_node_or_null("EnemyModel") as MeshInstance3D
+	if placeholder:
+		placeholder.visible = false
 
 	# Update collision shapes to revealed size
-	var body_shape = get_node_or_null("CollisionShape2D")
-	if body_shape and body_shape.shape is RectangleShape2D:
-		body_shape.shape = body_shape.shape.duplicate()
-		body_shape.shape.size = HALL_REVEALED_SIZE
+	var body_shape = get_node_or_null("CollisionShape3D")
+	if body_shape:
+		var capsule_shape := CapsuleShape3D.new()
+		capsule_shape.radius = 0.5
+		capsule_shape.height = 2.0
+		body_shape.shape = capsule_shape
 
-	var hurtbox_shape = get_node_or_null("Hurtbox/CollisionShape2D")
-	if hurtbox_shape and hurtbox_shape.shape is RectangleShape2D:
-		hurtbox_shape.shape = hurtbox_shape.shape.duplicate()
-		hurtbox_shape.shape.size = HALL_REVEALED_SIZE
+	var hurtbox_shape = get_node_or_null("Hurtbox/CollisionShape3D")
+	if hurtbox_shape:
+		var capsule_shape := CapsuleShape3D.new()
+		capsule_shape.radius = 0.5
+		capsule_shape.height = 2.0
+		hurtbox_shape.shape = capsule_shape

@@ -4,12 +4,12 @@
 extends Node
 
 const COOLDOWN: float = 12.0
-const SCAN_RADIUS: float = 300.0
+const SCAN_RADIUS: float = 15.0  # 300px / 20
 const SCAN_DURATION: float = 6.0
 const HALLUCINATION_STUN: float = 2.0
 
 
-func activate(player_pos: Vector2, _facing: int) -> void:
+func activate(player_pos: Vector3, _aim_dir: Vector3) -> void:
 	var player = get_parent().get_parent()
 	var player_id: int = player.player_id
 
@@ -21,6 +21,6 @@ func activate(player_pos: Vector2, _facing: int) -> void:
 			if enemy.has_method("reveal_from_scan"):
 				enemy.reveal_from_scan()
 
-	Events.ability_activated.emit(player_id, "weak_point_scan", player_pos, Vector2.ZERO)
+	Events.ability_activated.emit(player_id, "weak_point_scan", player_pos, Vector3.ZERO)
 	# Show visual via player's RPC (player node exists on all peers).
 	player._show_scan_visual.rpc(player_pos, SCAN_RADIUS)

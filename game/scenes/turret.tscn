@@ -1,13 +1,26 @@
-[gd_scene load_steps=6 format=3 uid="uid://turret001"]
+[gd_scene load_steps=9 format=3 uid="uid://turret001"]
 
 [ext_resource type="Script" path="res://scripts/entities/turret.gd" id="1_turret"]
-[ext_resource type="Texture2D" path="res://assets/sprites/turret.png" id="2_tex_turret"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
-size = Vector2(24, 24)
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.2, 1.2, 1.2)
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_detect"]
-radius = 250.0
+[sub_resource type="CylinderMesh" id="CylinderMesh_base"]
+top_radius = 0.5
+bottom_radius = 0.6
+height = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_base"]
+albedo_color = Color(0.1, 0.7, 0.2, 1)
+emission_enabled = true
+emission = Color(0.1, 0.7, 0.2, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_barrel"]
+size = Vector3(0.15, 0.15, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_barrel"]
+albedo_color = Color(0.3, 0.3, 0.3, 1)
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_turret"]
 properties/0/path = NodePath(".:position")
@@ -20,30 +33,24 @@ properties/2/path = NodePath(".:owner_id")
 properties/2/spawn = true
 properties/2/replication_mode = 0
 
-[node name="Turret" type="StaticBody2D"]
+[node name="Turret" type="StaticBody3D"]
 script = ExtResource("1_turret")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_body")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_body")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("2_tex_turret")
+[node name="TurretModel" type="Node3D" parent="."]
 
-[node name="TypeLabel" type="Label" parent="."]
-offset_left = -12.0
-offset_top = -12.0
-offset_right = 12.0
-offset_bottom = 12.0
-text = "T"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Base" type="MeshInstance3D" parent="TurretModel"]
+mesh = SubResource("CylinderMesh_base")
+material_override = SubResource("StandardMaterial3D_base")
 
-[node name="DetectionArea" type="Area2D" parent="."]
+[node name="Barrel" type="MeshInstance3D" parent="TurretModel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.4)
+mesh = SubResource("BoxMesh_barrel")
+material_override = SubResource("StandardMaterial3D_barrel")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
-shape = SubResource("CircleShape2D_detect")
-
-[node name="ShootPoint" type="Marker2D" parent="."]
+[node name="ShootPoint" type="Marker3D" parent="."]
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_turret")

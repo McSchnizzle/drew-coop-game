@@ -15,14 +15,14 @@ func _ready() -> void:
 	TURRET_SCENE = load("res://scenes/turret.tscn")
 
 
-func activate(player_pos: Vector2, facing: int) -> void:
+func activate(player_pos: Vector3, aim_dir: Vector3) -> void:
 	if TURRET_SCENE == null:
 		return
 
 	var player = get_parent().get_parent()
 	var player_id: int = player.player_id
 
-	var turret_pos := player_pos + Vector2(facing * 60, 0)
+	var turret_pos := player_pos + Vector3(aim_dir.x, 0, aim_dir.z).normalized() * 3.0  # 60px / 20 = 3.0 units
 	_enforce_turret_limit()
 
 	var turret = TURRET_SCENE.instantiate()
@@ -37,7 +37,7 @@ func activate(player_pos: Vector2, facing: int) -> void:
 
 	_active_turrets.append(turret)
 	Events.turret_deployed.emit(player_id, turret.turret_id, turret_pos)
-	Events.ability_activated.emit(player_id, "deploy_turret", turret_pos, Vector2(facing, 0))
+	Events.ability_activated.emit(player_id, "deploy_turret", turret_pos, aim_dir)
 
 
 func _enforce_turret_limit() -> void:

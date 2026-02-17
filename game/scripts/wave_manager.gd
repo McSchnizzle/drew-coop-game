@@ -10,9 +10,11 @@ const MAX_WAVE: int = 10
 const WAVE_MAX_ENEMIES: int = 30
 const SPAWN_STAGGER: float = 0.15
 
-const SPAWN_X_MIN: float = 800.0
-const SPAWN_X_MAX: float = 1100.0
-const SPAWN_Y: float = 500.0
+const ARENA_MIN_X: float = -29.0
+const ARENA_MAX_X: float = 29.0
+const ARENA_MIN_Z: float = -14.0
+const ARENA_MAX_Z: float = 14.0
+const SPAWN_Y: float = 0.0
 
 const REST_DURATIONS: Array[float] = [5.0, 5.0, 5.0, 4.0, 4.0, 3.0]
 
@@ -91,6 +93,14 @@ func _physics_process(delta: float) -> void:
 func start_waves() -> void:
 	if not multiplayer.is_server():
 		return
+	_start_next_wave()
+
+
+func restore_wave(wave_number: int, game_time: float) -> void:
+	if not multiplayer.is_server():
+		return
+	_current_wave = wave_number - 1
+	_game_time = game_time
 	_start_next_wave()
 
 
@@ -185,9 +195,7 @@ func _spawn_enemy() -> void:
 	enemy.enemy_id = game_manager.next_enemy_id()
 	enemy.name = "Enemy_%d" % enemy.enemy_id
 
-	# Randomize spawn position along the right edge
-	var spawn_x := randf_range(SPAWN_X_MIN, SPAWN_X_MAX)
-	enemy.position = Vector2(spawn_x, SPAWN_Y)
+	enemy.position = _random_edge_position()
 
 	var enemies_node = get_tree().current_scene.get_node("Enemies")
 	enemies_node.add_child(enemy, true)
@@ -210,8 +218,7 @@ func _spawn_boss() -> void:
 	boss.enemy_id = game_manager.next_enemy_id()
 	boss.name = "Enemy_%d" % boss.enemy_id
 
-	# Spawn boss at center-right of the arena
-	boss.position = Vector2(1000, 300)
+	boss.position = _random_edge_position()
 
 	var enemies_node = get_tree().current_scene.get_node("Enemies")
 	enemies_node.add_child(boss, true)
@@ -224,6 +231,19 @@ func _spawn_boss() -> void:
 	Events.boss_spawned.emit(boss.enemy_id, "boss_kernel_panic", boss.position)
 	_notify_boss_spawned.rpc()
 	print("WaveManager: BOSS Kernel Panic spawned on wave %d!" % _current_wave)
+
+
+func _random_edge_position() -> Vector3:
+	var edge := randi() % 4
+	match edge:
+		0:  # North (negative Z)
+			return Vector3(randf_range(ARENA_MIN_X, ARENA_MAX_X), SPAWN_Y, ARENA_MIN_Z)
+		1:  # East (positive X)
+			return Vector3(ARENA_MAX_X, SPAWN_Y, randf_range(ARENA_MIN_Z, ARENA_MAX_Z))
+		2:  # South (positive Z)
+			return Vector3(randf_range(ARENA_MIN_X, ARENA_MAX_X), SPAWN_Y, ARENA_MAX_Z)
+		_:  # West (negative X)
+			return Vector3(ARENA_MIN_X, SPAWN_Y, randf_range(ARENA_MIN_Z, ARENA_MAX_Z))
 
 
 func _pick_enemy_type(wave_number: int) -> String:
@@ -288,15 +308,65 @@ func _notify_game_lost(wave: int, time: float) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _notify_boss_spawned() -> void:
-	_update_wave_hud_status("WARNING: KERNEL PANIC DETECTED")
-	# Clear warning after 3 seconds
-	get_tree().create_timer(3.0).timeout.connect(func():
-		var hud = get_tree().current_scene.get_node_or_null("UI/HUD")
-		if not hud:
-			return
-		var wave_label = hud.get_node_or_null("WaveLabel") as Label
-		if wave_label and wave_label.text == "WARNING: KERNEL PANIC DETECTED":
-			wave_label.text = "Wave: %d" % current_wave
+	_update_wave_hud_status("Wave: %d — BOSS" % current_wave)
+	_show_boss_incoming_sign()
+
+
+func _show_boss_incoming_sign() -> void:
+	var hud = get_tree().current_scene.get_node_or_null("UI/HUD")
+	if not hud:
+		return
+
+	# Dark overlay
+	var overlay := ColorRect.new()
+	overlay.name = "BossOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(overlay)
+
+	# Container for centered text
+	var container := VBoxContainer.new()
+	container.name = "BossAnnounce"
+	container.set_anchors_preset(Control.PRESET_CENTER)
+	container.offset_left = -300.0
+	container.offset_top = -80.0
+	container.offset_right = 300.0
+	container.offset_bottom = 80.0
+	container.alignment = BoxContainer.ALIGNMENT_CENTER
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(container)
+
+	# "WARNING" line
+	var warn_label := Label.new()
+	warn_label.text = "WARNING"
+	warn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warn_label.add_theme_font_size_override("font_size", 24)
+	warn_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.0))
+	container.add_child(warn_label)
+
+	# "BOSS INCOMING" main line
+	var boss_label := Label.new()
+	boss_label.text = "BOSS INCOMING"
+	boss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_label.add_theme_font_size_override("font_size", 48)
+	boss_label.add_theme_color_override("font_color", Color(1.0, 0.1, 0.1))
+	container.add_child(boss_label)
+
+	# "KERNEL PANIC" subtitle
+	var sub_label := Label.new()
+	sub_label.text = "KERNEL PANIC"
+	sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_label.add_theme_font_size_override("font_size", 20)
+	sub_label.add_theme_color_override("font_color", Color(0.3, 0.5, 1.0))
+	container.add_child(sub_label)
+
+	# Fade out after 2.5 seconds
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+		if is_instance_valid(container):
+			container.queue_free()
 	)
 
 
@@ -320,6 +390,39 @@ func _update_wave_hud_status(status_text: String) -> void:
 		wave_label.text = status_text
 
 
+const DEATH_MESSAGES: Array[String] = [
+	"Have you tried turning it off and on again?",
+	"Segfault. Your team was the segment.",
+	"Task failed successfully.",
+	"Your code compiled. You didn't.",
+	"Exception: TeamNotFoundException",
+	"git blame: everyone",
+	"Error 404: Survival not found",
+	"Skill issue detected. Rebooting...",
+	"You've been deprecated.",
+	"Unhandled exception in main() -> you died",
+	"The bugs won the sprint review.",
+	"Production is down. So are you.",
+	"rm -rf /your_hopes_and_dreams",
+	"Stack overflow. Not the helpful kind.",
+	"Your pull request has been denied... permanently.",
+	"Looks like the real bug was you all along.",
+	"TODO: get good",
+	"This incident will be reported.",
+]
+
+const VICTORY_MESSAGES: Array[String] = [
+	"All tests passing. Ship it!",
+	"Code review: LGTM",
+	"Merged to main with zero conflicts.",
+	"Senior dev energy right there.",
+	"The deployment was successful for once.",
+	"You squashed every bug. Literally.",
+	"CI/CD pipeline: all green.",
+	"Your PR got 47 thumbs up.",
+]
+
+
 func _show_end_screen(result: String, wave: int, time: float) -> void:
 	var hud = get_tree().current_scene.get_node_or_null("UI/HUD")
 	if not hud:
@@ -330,12 +433,21 @@ func _show_end_screen(result: String, wave: int, time: float) -> void:
 
 	var result_label = end_screen.get_node_or_null("VBoxContainer/ResultLabel") as Label
 	var stats_label = end_screen.get_node_or_null("VBoxContainer/StatsLabel") as Label
+	var flavor_label = end_screen.get_node_or_null("VBoxContainer/FlavorLabel") as Label
 	if result_label:
 		result_label.text = result
 	if stats_label:
 		stats_label.text = "Wave %d  |  Time: %ds" % [wave, int(time)]
+	if flavor_label:
+		if result == "GAME OVER":
+			flavor_label.text = DEATH_MESSAGES[randi() % DEATH_MESSAGES.size()]
+			flavor_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3))
+		else:
+			flavor_label.text = VICTORY_MESSAGES[randi() % VICTORY_MESSAGES.size()]
+			flavor_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 
 	end_screen.visible = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	# Auto-return to lobby after 8 seconds (server triggers for all peers).
 	get_tree().create_timer(8.0).timeout.connect(func():
