@@ -87,12 +87,20 @@ func _create_repo_owner_label(host_player: Node3D) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Controller A button triggers Return to Lobby when EndScreen is showing
-	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A:
-		var end_screen = get_node_or_null("UI/HUD/EndScreen")
-		if end_screen and end_screen.visible:
-			_on_return_button_pressed()
-			get_viewport().set_input_as_handled()
+	var end_screen = get_node_or_null("UI/HUD/EndScreen")
+	if not end_screen or not end_screen.visible:
+		return
+
+	# Controller: any face button or ui_accept action returns to lobby
+	var should_return := false
+	if event is InputEventJoypadButton and event.pressed:
+		should_return = true
+	elif event.is_action_pressed("ui_accept"):
+		should_return = true
+
+	if should_return:
+		_on_return_button_pressed()
+		get_viewport().set_input_as_handled()
 
 
 func _process(_delta: float) -> void:

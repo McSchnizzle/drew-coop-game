@@ -21,8 +21,34 @@ var size_tier: int = 0
 
 func _ready() -> void:
 	super._ready()
-	_load_glb_model("res://assets/models/enemy_trilobite.fbx")
+	_load_glb_model("res://assets/models/ybot/ybot.fbx")
+	_load_external_animations({
+		"Idle": "res://assets/models/ybot/idle.fbx",
+		"Walk": "res://assets/models/ybot/walk.fbx",
+		"Run": "res://assets/models/ybot/run.fbx",
+		"Death": "res://assets/models/ybot/death.fbx",
+		"HitReaction": "res://assets/models/ybot/hit_reaction.fbx",
+		"Attack": "res://assets/models/ybot/attack.fbx",
+	})
+	_tint_model(Color(0.9, 0.3, 0.3))  # Red tint
 	_apply_tier_stats()
+
+
+func _transition_to(new_state: State) -> void:
+	_current_state = new_state
+	match new_state:
+		State.IDLE:
+			_play_anim("Idle")
+		State.CHASE:
+			_play_anim("Run")
+		State.ATTACK:
+			_play_anim("Attack")
+		State.FLEE:
+			_play_anim("Run")
+		State.STUNNED:
+			_play_anim("Idle")
+		State.DEAD:
+			_play_anim("Death")
 
 
 func _apply_tier_stats() -> void:
@@ -30,17 +56,14 @@ func _apply_tier_stats() -> void:
 	speed = TIER_SPEED[size_tier]
 	contact_damage = TIER_CONTACT_DMG[size_tier]
 
-	# Update visual - scale model and change material color per tier
-	var model = _get_model_mesh()
-	if model:
+	# Scale the whole model node (not just the mesh) so skeleton stays in sync
+	if _model_node:
+		var base_scale := _model_node.scale
 		var s: float = TIER_SCALE[size_tier]
-		model.scale = Vector3(s, s, s)
-		var mat = model.get_active_material(0)
-		if mat and mat is StandardMaterial3D:
-			mat = mat.duplicate()
-			mat.albedo_color = TIER_COLORS[size_tier]
-			mat.emission = TIER_COLORS[size_tier]
-			model.material_override = mat
+		_model_node.scale = base_scale * s
+
+	# Tint per tier
+	_tint_model(TIER_COLORS[size_tier])
 
 	# Update collision shapes
 	var body_shape = get_node_or_null("CollisionShape3D")

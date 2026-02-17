@@ -449,6 +449,11 @@ func _show_end_screen(result: String, wave: int, time: float) -> void:
 	end_screen.visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
+	# Give the Return button focus so controller navigation works
+	var return_btn = end_screen.get_node_or_null("VBoxContainer/ReturnButton")
+	if return_btn:
+		return_btn.grab_focus()
+
 	# Auto-return to lobby after 8 seconds (server triggers for all peers).
 	get_tree().create_timer(8.0).timeout.connect(func():
 		if not multiplayer.is_server():

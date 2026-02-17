@@ -132,6 +132,72 @@ func _find_anim_player(node: Node) -> AnimationPlayer:
 	return null
 
 
+func _tint_model(color: Color, emission: float = 0.3) -> void:
+	if not _model_node:
+		return
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = emission
+	mat.roughness = 0.5
+	_apply_material_recursive(_model_node, mat)
+
+
+func _apply_material_recursive(node: Node, mat: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		node.material_override = mat
+	for child in node.get_children():
+		_apply_material_recursive(child, mat)
+
+
+func _load_external_animations(anim_map: Dictionary) -> void:
+	## Load animations from separate FBX files into the model's AnimationPlayer.
+	## anim_map: { "Walk": "res://path/to/walk.fbx", "Death": "res://path/to/death.fbx", ... }
+	if not _model_node:
+		return
+	# Ensure we have an AnimationPlayer
+	if not _anim_player:
+		_anim_player = AnimationPlayer.new()
+		_model_node.add_child(_anim_player)
+		_anim_player.root_node = _anim_player.get_path_to(_model_node)
+
+	# Get or create the default animation library
+	var lib: AnimationLibrary
+	if _anim_player.has_animation_library(""):
+		lib = _anim_player.get_animation_library("")
+	else:
+		lib = AnimationLibrary.new()
+		_anim_player.add_animation_library("", lib)
+
+	for anim_name in anim_map:
+		var fbx_path: String = anim_map[anim_name]
+		var scene = load(fbx_path)
+		if not scene:
+			continue
+		# Instantiate temp scene to extract its animation
+		var temp := scene.instantiate()
+		var temp_player := _find_anim_player(temp)
+		if not temp_player:
+			temp.free()
+			continue
+		var anim_list := temp_player.get_animation_list()
+		if anim_list.is_empty():
+			temp.free()
+			continue
+		# Copy the first animation (Mixamo exports have one per FBX)
+		var source_anim: Animation = temp_player.get_animation(anim_list[0])
+		if source_anim:
+			var anim_copy := source_anim.duplicate()
+			# Set looping for movement/idle animations
+			if anim_name in ["Idle", "Walk", "Run"]:
+				anim_copy.loop_mode = Animation.LOOP_LINEAR
+			if lib.has_animation(anim_name):
+				lib.remove_animation(anim_name)
+			lib.add_animation(anim_name, anim_copy)
+		temp.free()
+
+
 func _play_anim(anim_name: String) -> void:
 	if not _anim_player:
 		return
