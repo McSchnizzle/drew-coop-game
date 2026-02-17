@@ -172,11 +172,11 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 
 	for anim_name in anim_map:
 		var fbx_path: String = anim_map[anim_name]
-		var scene = load(fbx_path)
+		var scene: PackedScene = load(fbx_path) as PackedScene
 		if not scene:
 			continue
 		# Instantiate temp scene to extract its animation
-		var temp := scene.instantiate()
+		var temp: Node = scene.instantiate()
 		var temp_player := _find_anim_player(temp)
 		if not temp_player:
 			temp.free()
