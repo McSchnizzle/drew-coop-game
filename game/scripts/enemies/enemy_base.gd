@@ -194,8 +194,13 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 			temp.free()
 			continue
 		print("[AnimDebug] %s has anims: %s (root=%s)" % [fbx_path, str(anim_list), str(temp_player.root_node)])
-		# Copy the first animation (Mixamo exports have one per FBX)
-		var source_anim: Animation = temp_player.get_animation(anim_list[0])
+		# Prefer "mixamo_com" (the real animation), not "Take 001" (empty default FBX take)
+		var pick_name: String = anim_list[0]
+		for candidate in anim_list:
+			if "mixamo" in candidate.to_lower():
+				pick_name = candidate
+				break
+		var source_anim: Animation = temp_player.get_animation(pick_name)
 		if source_anim:
 			var anim_copy := source_anim.duplicate()
 			# Log track info for first anim only
