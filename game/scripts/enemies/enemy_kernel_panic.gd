@@ -123,12 +123,14 @@ func _state_chase(delta: float) -> void:
 		var dir := (target.global_position - global_position)
 		dir.y = 0
 		_lunge_direction = dir.normalized()
-		velocity = Vector3.ZERO
+		velocity.x = 0.0
+		velocity.z = 0.0
 		_show_lunge_telegraph.rpc()
 		return
 
 	if _is_frozen:
-		velocity = Vector3.ZERO
+		velocity.x = 0.0
+		velocity.z = 0.0
 		_freeze_timer -= delta
 		if _freeze_timer <= 0.0:
 			_is_frozen = false
@@ -141,8 +143,8 @@ func _state_chase(delta: float) -> void:
 	var dir := (target.global_position - global_position)
 	dir.y = 0
 	dir = dir.normalized()
-	velocity = dir * speed
-	move_and_slide()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
 
 
 func _state_attack(delta: float) -> void:
@@ -150,8 +152,8 @@ func _state_attack(delta: float) -> void:
 		_transition_to(State.CHASE)
 		return
 
-	velocity = _lunge_direction * LUNGE_SPEED[_current_phase]
-	move_and_slide()
+	velocity.x = _lunge_direction.x * LUNGE_SPEED[_current_phase]
+	velocity.z = _lunge_direction.z * LUNGE_SPEED[_current_phase]
 
 	_lunge_timer -= delta
 	if _lunge_timer <= 0.0:
@@ -161,7 +163,8 @@ func _state_attack(delta: float) -> void:
 
 
 func _state_stunned(delta: float) -> void:
-	velocity = Vector3.ZERO
+	velocity.x = 0.0
+	velocity.z = 0.0
 	_is_frozen = false
 	_is_lunging = false
 	_stun_timer -= delta
@@ -364,10 +367,11 @@ func _die(killed_by: int) -> void:
 	_is_alive = false
 	_current_state = State.DEAD
 	velocity = Vector3.ZERO
+	_transition_to(State.DEAD)
 	Events.enemy_died.emit(enemy_id, killed_by, false)
 	Events.boss_died.emit(enemy_id, killed_by)
 	_notify_boss_died.rpc()
-	queue_free()
+	_delayed_free()
 
 
 # -- Scaling Override ---

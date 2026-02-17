@@ -49,13 +49,14 @@ func _state_chase(delta: float) -> void:
 	var dir := (target.global_position - global_position)
 	dir.y = 0
 	dir = dir.normalized()
-	velocity = dir * speed
-	move_and_slide()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
 
 
 func _state_attack(delta: float) -> void:
 	_fire_cooldown = maxf(_fire_cooldown - delta, 0.0)
-	velocity = Vector3.ZERO
+	velocity.x = 0.0
+	velocity.z = 0.0
 	var target := _find_nearest_player()
 	if not target:
 		_transition_to(State.IDLE)
@@ -97,8 +98,8 @@ func _state_flee(delta: float) -> void:
 	var dir := (global_position - target.global_position)
 	dir.y = 0
 	dir = dir.normalized()
-	velocity = dir * speed * 0.8
-	move_and_slide()
+	velocity.x = dir.x * speed * 0.8
+	velocity.z = dir.z * speed * 0.8
 
 
 func _fire_rot_projectile(direction: Vector3) -> void:

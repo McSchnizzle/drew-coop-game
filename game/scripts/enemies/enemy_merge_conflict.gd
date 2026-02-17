@@ -96,18 +96,23 @@ func _apply_tier_stats() -> void:
 		var base_size: float = 2.4 * TIER_SCALE[size_tier]
 		hurtbox_shape.shape.size = Vector3(base_size, base_size, base_size)
 
+	# Reposition model after scale + collision shape changes
+	_reposition_model()
+
 
 func _die(killed_by: int) -> void:
 	_is_alive = false
 	_current_state = State.DEAD
 	velocity = Vector3.ZERO
+	_transition_to(State.DEAD)
 	var was_clean := has_status("exposed")
 	Events.enemy_died.emit(enemy_id, killed_by, was_clean)
 
 	if not was_clean and size_tier < 2:
 		_spawn_children(killed_by)
 
-	queue_free()
+	# Death animation plays while kids spawn, then parent frees
+	_delayed_free()
 
 
 func _spawn_children(_killed_by: int) -> void:

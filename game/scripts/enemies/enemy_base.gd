@@ -17,7 +17,13 @@ var _anim_player: AnimationPlayer = null
 
 const CONTACT_DAMAGE_COOLDOWN: float = 1.0
 const CONTACT_RANGE: float = 2.5  # 50px / 20
+const GRAVITY: float = 20.0
 var _contact_damage_timer: float = 0.0
+var _attack_timer: float = 0.0
+var _attack_hit_landed: bool = false
+var _attack_target: Node3D = null  # The player/turret we're attacking
+const ATTACK_DURATION: float = 0.5
+const ATTACK_HIT_POINT: float = 0.4  # Deal damage at 40% through the animation
 
 
 func _ready() -> void:
@@ -62,7 +68,9 @@ func _load_glb_model(glb_path: String, target_height: float = 0.0) -> void:
 	# Find AnimationPlayer for walk/idle animations
 	_anim_player = _find_anim_player(_model_node)
 	if _anim_player:
-		_play_anim("Idle")
+		# Stop any auto-playing FBX animation (e.g. "Take 001") to avoid stuck poses
+		_anim_player.stop()
+		_anim_player.autoplay = ""
 	# Hide the placeholder
 	var placeholder = get_node_or_null("EnemyModel") as MeshInstance3D
 	if placeholder:
@@ -92,10 +100,21 @@ func _fit_model_to_height(target_height: float) -> void:
 		var scale_factor := target_height / bounds.size.y
 		# Multiply (not replace) to preserve FBX's built-in transforms
 		_model_node.scale *= scale_factor
-		# Align model feet (bottom of bounds) to bottom of collision shape
+	# Align model feet to bottom of collision shape
+	_reposition_model()
+
+
+func _reposition_model() -> void:
+	## Recalculate model Y position to align feet to bottom of collision shape.
+	## Call after any scale or collision shape change (e.g. tier scaling).
+	if not _model_node:
+		return
+	# Reset Y to 0 so bounds computation isn't circular
+	_model_node.position.y = 0.0
+	var bounds := _compute_model_bounds()
+	if bounds.size.y > 0.01:
 		var collision_height := _get_collision_height()
-		var bottom_y := bounds.position.y  # lowest point of mesh in model space
-		_model_node.position.y = -bottom_y * scale_factor - collision_height / 2.0
+		_model_node.position.y = -bounds.position.y - collision_height / 2.0
 
 
 func _compute_model_bounds() -> AABB:
@@ -162,12 +181,13 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 		_model_node.add_child(_anim_player)
 		_anim_player.root_node = _anim_player.get_path_to(_model_node)
 
-	var lib: AnimationLibrary
+	# Always create a FRESH library per instance. Godot shares sub-resources
+	# across instances of the same imported scene, so modifying the existing
+	# library from one enemy would corrupt animations on all other enemies.
+	var lib := AnimationLibrary.new()
 	if _anim_player.has_animation_library(""):
-		lib = _anim_player.get_animation_library("")
-	else:
-		lib = AnimationLibrary.new()
-		_anim_player.add_animation_library("", lib)
+		_anim_player.remove_animation_library("")
+	_anim_player.add_animation_library("", lib)
 
 	for anim_name in anim_map:
 		var fbx_path: String = anim_map[anim_name]
@@ -195,10 +215,10 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 			_strip_root_motion(anim_copy)
 			if anim_name in ["Idle", "Walk", "Run"]:
 				anim_copy.loop_mode = Animation.LOOP_LINEAR
-			if lib.has_animation(anim_name):
-				lib.remove_animation(anim_name)
 			lib.add_animation(anim_name, anim_copy)
 		temp.free()
+	# Start in idle pose now that real animations are available
+	_play_anim("Idle")
 
 
 func _strip_root_motion(anim: Animation) -> void:
@@ -261,9 +281,14 @@ func _physics_process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 
+	# Gravity — ensures split children and spawned enemies settle on the floor
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+
 	_update_status_effects(delta)
 	_contact_damage_timer = maxf(_contact_damage_timer - delta, 0.0)
-	_check_contact_damage()
+	if _current_state != State.ATTACK:
+		_check_contact_damage()
 
 	match _current_state:
 		State.IDLE:
@@ -279,13 +304,15 @@ func _physics_process(delta: float) -> void:
 		State.DEAD:
 			pass
 
+	move_and_slide()
+
 
 # Virtual methods -- override in subclasses
 func _state_idle(_delta: float) -> void:
 	_transition_to(State.CHASE)
 
 
-func _state_chase(delta: float) -> void:
+func _state_chase(_delta: float) -> void:
 	var target := _find_nearest_player()
 	if not target:
 		_transition_to(State.IDLE)
@@ -293,15 +320,45 @@ func _state_chase(delta: float) -> void:
 	var dir := (target.global_position - global_position)
 	dir.y = 0
 	dir = dir.normalized()
-	velocity = dir * speed
-	move_and_slide()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
 
 
-func _state_attack(_delta: float) -> void:
-	pass  # Override per enemy type
+func _state_attack(delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_attack_timer += delta
+	# Use real animation length so the full punch/swipe plays out
+	var duration := ATTACK_DURATION
+	if _anim_player and _anim_player.has_animation("Attack"):
+		duration = _anim_player.get_animation("Attack").length
+
+	# Deal damage at the hit point of the animation (when the punch connects visually)
+	if not _attack_hit_landed and _attack_timer >= duration * ATTACK_HIT_POINT:
+		_attack_hit_landed = true
+		if is_instance_valid(_attack_target):
+			if _attack_target.has_method("take_damage"):
+				if _attack_target.is_in_group("turrets"):
+					_attack_target.take_damage(contact_damage, enemy_id)
+				else:
+					_attack_target.take_damage(contact_damage)
+				_contact_damage_timer = CONTACT_DAMAGE_COOLDOWN
+				_show_melee_strike.rpc(global_position.lerp(_attack_target.global_position, 0.5))
+
+	# Animation finished — attack again or chase
+	if _attack_timer >= duration:
+		_attack_timer = 0.0
+		_attack_hit_landed = false
+		var target := _find_nearest_player()
+		if target and global_position.distance_to(target.global_position) <= CONTACT_RANGE * 1.5:
+			_attack_target = target
+			_play_anim("Attack")
+		else:
+			_attack_target = null
+			_transition_to(State.CHASE)
 
 
-func _state_flee(delta: float) -> void:
+func _state_flee(_delta: float) -> void:
 	var target := _find_nearest_player()
 	if not target:
 		_transition_to(State.IDLE)
@@ -309,12 +366,13 @@ func _state_flee(delta: float) -> void:
 	var dir := (global_position - target.global_position)
 	dir.y = 0
 	dir = dir.normalized()
-	velocity = dir * speed * 0.8
-	move_and_slide()
+	velocity.x = dir.x * speed * 0.8
+	velocity.z = dir.z * speed * 0.8
 
 
 func _state_stunned(delta: float) -> void:
-	velocity = Vector3.ZERO
+	velocity.x = 0.0
+	velocity.z = 0.0
 	_stun_timer -= delta
 	if _stun_timer <= 0.0:
 		_transition_to(State.CHASE)
@@ -434,8 +492,23 @@ func _die(killed_by: int) -> void:
 	_is_alive = false
 	_current_state = State.DEAD
 	velocity = Vector3.ZERO
+	_transition_to(State.DEAD)
 	Events.enemy_died.emit(enemy_id, killed_by, false)
-	queue_free()
+	# Delay free so death animation plays
+	_delayed_free()
+
+
+func _delayed_free() -> void:
+	# Wait for death animation to finish, then free the node
+	var death_time := 1.5
+	if _anim_player and _anim_player.has_animation("Death"):
+		death_time = _anim_player.get_animation("Death").length
+	# Disable collision so dead enemy doesn't block movement
+	collision_layer = 0
+	collision_mask = 0
+	var tween := create_tween()
+	tween.tween_interval(death_time)
+	tween.tween_callback(queue_free)
 
 
 func apply_status(effect_name: String, duration: float) -> void:
@@ -494,13 +567,14 @@ func _check_contact_damage() -> void:
 		if player.get("_is_alive") != null and not player._is_alive:
 			continue
 		var dist := global_position.distance_to(player.global_position)
-		if dist <= CONTACT_RANGE and player.has_method("take_damage"):
-			player.take_damage(contact_damage)
-			_contact_damage_timer = CONTACT_DAMAGE_COOLDOWN
-			_show_melee_strike.rpc(global_position.lerp(player.global_position, 0.5))
+		if dist <= CONTACT_RANGE:
+			# Don't deal damage yet — start the attack animation first.
+			# Damage lands at ATTACK_HIT_POINT through the animation.
+			_attack_target = player
+			_transition_to(State.ATTACK)
 			return
 
-	# Also damage turrets on contact.
+	# Also check turrets.
 	var turrets := get_tree().get_nodes_in_group("turrets")
 	for turret in turrets:
 		if not turret is Node3D or not turret.visible:
@@ -508,8 +582,7 @@ func _check_contact_damage() -> void:
 		if turret.get("_is_alive") != null and not turret._is_alive:
 			continue
 		var dist := global_position.distance_to(turret.global_position)
-		if dist <= CONTACT_RANGE and turret.has_method("take_damage"):
-			turret.take_damage(contact_damage, enemy_id)
-			_contact_damage_timer = CONTACT_DAMAGE_COOLDOWN
-			_show_melee_strike.rpc(global_position.lerp(turret.global_position, 0.5))
+		if dist <= CONTACT_RANGE:
+			_attack_target = turret
+			_transition_to(State.ATTACK)
 			return
