@@ -236,7 +236,9 @@ func _strip_root_motion(anim: Animation) -> void:
 		break
 
 
-func _play_anim(anim_name: String) -> void:
+const ANIM_BLEND_TIME: float = 0.25  # Cross-fade duration between animations
+
+func _play_anim(anim_name: String, blend: float = ANIM_BLEND_TIME) -> void:
 	if not _anim_player:
 		return
 	var found_name: String = ""
@@ -258,7 +260,7 @@ func _play_anim(anim_name: String) -> void:
 	if anim and anim_name in ["Walk", "Idle", "Run"]:
 		anim.loop_mode = Animation.LOOP_LINEAR
 	if _anim_player.current_animation != found_name:
-		_anim_player.play(found_name)
+		_anim_player.play(found_name, blend)
 
 
 func _process(_delta: float) -> void:
