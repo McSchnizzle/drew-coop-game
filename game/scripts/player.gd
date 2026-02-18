@@ -6,6 +6,8 @@ extends CharacterBody3D
 # ── Physics Constants ─────────────────────────────────────────────────────
 const RUN_SPEED: float = 8.5
 const SPRINT_SPEED: float = 15.0
+const JUMP_VELOCITY: float = 8.0
+const PLAYER_GRAVITY: float = 20.0
 
 # Sprint stamina
 const SPRINT_STAMINA_MAX: float = 100.0
@@ -27,6 +29,7 @@ const MOUSE_SENSITIVITY: float = 0.002
 
 # Projectile scene path
 const PROJECTILE_SCENE: String = "res://scenes/projectile.tscn"
+
 
 # Revive constants
 const BLEEDOUT_TIME: float = 30.0
@@ -61,6 +64,7 @@ var input_melee: bool = false
 var input_ability: bool = false
 var input_super: bool = false
 var input_interact: bool = false
+var input_jump: bool = false
 
 # ── Camera State (synced for remote player head tilt) ────────────────────
 var _camera_pitch: float = 0.0
@@ -195,6 +199,7 @@ func _gather_input() -> void:
 		input_ability = false
 		input_super = false
 		input_interact = false
+		input_jump = false
 		return
 
 	# Camera-relative WASD movement
@@ -237,6 +242,7 @@ func _gather_input() -> void:
 	input_ability = Input.is_action_just_pressed("ability")
 	input_super = Input.is_action_just_pressed("super")
 	input_interact = Input.is_action_pressed("interact")
+	input_jump = Input.is_action_just_pressed("jump")
 
 	# Sprint toggle
 	if Input.is_action_just_pressed("sprint"):
@@ -281,10 +287,17 @@ func _server_process(delta: float) -> void:
 	if has_status("overdrive"):
 		speed_mult *= 1.2
 
-	# -- Movement (flat arena, no gravity) --
+	# -- Movement --
 	var current_speed := (SPRINT_SPEED if is_sprinting else RUN_SPEED) * speed_mult
-	velocity = input_move_dir * current_speed
-	velocity.y = 0  # Keep on ground plane
+	velocity.x = input_move_dir.x * current_speed
+	velocity.z = input_move_dir.z * current_speed
+
+	# -- Gravity & Jump --
+	if is_on_floor():
+		if input_jump:
+			velocity.y = JUMP_VELOCITY
+	else:
+		velocity.y -= PLAYER_GRAVITY * delta
 
 	# -- Shooting (blocked during revive) --
 	if not _is_reviving_someone:
@@ -301,12 +314,9 @@ func _server_process(delta: float) -> void:
 	# -- Apply movement --
 	move_and_slide()
 
-	# -- Clamp to ground plane --
-	if position.y != 0.0:
-		position.y = 0.0
-
 	# -- Consume one-shot inputs --
 	input_melee = false
+	input_jump = false
 
 
 # ── Shooting System (tap + hold auto-fire) ───────────────────────────────

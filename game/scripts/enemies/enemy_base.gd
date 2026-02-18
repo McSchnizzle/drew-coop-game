@@ -324,6 +324,17 @@ func _state_chase(_delta: float) -> void:
 	velocity.z = dir.z * speed
 
 
+func _start_attack() -> void:
+	## Reset attack state and begin a fresh attack animation.
+	_attack_timer = 0.0
+	_attack_hit_landed = false
+	_current_state = State.ATTACK
+	# Force animation restart (stop first so _play_anim doesn't skip it)
+	if _anim_player:
+		_anim_player.stop()
+	_play_anim("Attack")
+
+
 func _state_attack(delta: float) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
@@ -334,10 +345,12 @@ func _state_attack(delta: float) -> void:
 		duration = _anim_player.get_animation("Attack").length
 
 	# Deal damage at the hit point of the animation (when the punch connects visually)
+	# Only hits if target is still within melee range
 	if not _attack_hit_landed and _attack_timer >= duration * ATTACK_HIT_POINT:
 		_attack_hit_landed = true
 		if is_instance_valid(_attack_target):
-			if _attack_target.has_method("take_damage"):
+			var hit_dist := global_position.distance_to(_attack_target.global_position)
+			if hit_dist <= CONTACT_RANGE * 1.5 and _attack_target.has_method("take_damage"):
 				if _attack_target.is_in_group("turrets"):
 					_attack_target.take_damage(contact_damage, enemy_id)
 				else:
@@ -347,14 +360,14 @@ func _state_attack(delta: float) -> void:
 
 	# Animation finished — attack again or chase
 	if _attack_timer >= duration:
-		_attack_timer = 0.0
-		_attack_hit_landed = false
 		var target := _find_nearest_player()
 		if target and global_position.distance_to(target.global_position) <= CONTACT_RANGE * 1.5:
 			_attack_target = target
-			_play_anim("Attack")
+			_start_attack()
 		else:
 			_attack_target = null
+			_attack_timer = 0.0
+			_attack_hit_landed = false
 			_transition_to(State.CHASE)
 
 
@@ -571,7 +584,7 @@ func _check_contact_damage() -> void:
 			# Don't deal damage yet — start the attack animation first.
 			# Damage lands at ATTACK_HIT_POINT through the animation.
 			_attack_target = player
-			_transition_to(State.ATTACK)
+			_start_attack()
 			return
 
 	# Also check turrets.
@@ -584,5 +597,5 @@ func _check_contact_damage() -> void:
 		var dist := global_position.distance_to(turret.global_position)
 		if dist <= CONTACT_RANGE:
 			_attack_target = turret
-			_transition_to(State.ATTACK)
+			_start_attack()
 			return
