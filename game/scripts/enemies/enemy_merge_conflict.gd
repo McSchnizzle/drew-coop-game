@@ -109,9 +109,14 @@ func _die(killed_by: int) -> void:
 	Events.enemy_died.emit(enemy_id, killed_by, was_clean)
 
 	if not was_clean and size_tier < 2:
-		_spawn_children(killed_by)
+		# Delay spawning kids so the death animation plays partway first
+		var death_time := 1.5
+		if _anim_player and _anim_player.has_animation("Death"):
+			death_time = _anim_player.get_animation("Death").length
+		var spawn_tween := create_tween()
+		spawn_tween.tween_interval(death_time * 0.4)
+		spawn_tween.tween_callback(_spawn_children.bind(killed_by))
 
-	# Death animation plays while kids spawn, then parent frees
 	_delayed_free()
 
 
