@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2qrkjf8q58kh"
-path.s3tc="res://.godot/imported/merge_conflict_1.png-72b897292f0376ba6efd365c4b537f0c.s3tc.ctex"
+uid="uid://cdmr7haf2w1fp"
+path.s3tc="res://.godot/imported/ely_0.png-c8299fdf5c1411f411d5106145c6c462.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "7b31717e6af38bed6db85c97bf75a950"
+"md5": "f676b67eab020e7d7f8578f911a2692a"
 }
 
 [deps]
 
-source_file="res://assets/models/merge_conflict_1.png"
-dest_files=["res://.godot/imported/merge_conflict_1.png-72b897292f0376ba6efd365c4b537f0c.s3tc.ctex"]
+source_file="res://assets/models/ely/ely_0.png"
+dest_files=["res://.godot/imported/ely_0.png-c8299fdf5c1411f411d5106145c6c462.s3tc.ctex"]
 
 [params]
 
