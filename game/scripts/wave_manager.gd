@@ -38,7 +38,7 @@ const WAVE_TYPE_WEIGHTS: Dictionary = {
 	"merge_conflict": 40,
 	"hallucination": 20,
 	"context_rot": 25,
-	"dependency_hell": 15,
+	"deadlock": 15,
 }
 
 # ── State ────────────────────────────────────────────────────────────────────
@@ -61,8 +61,9 @@ func _ready() -> void:
 		"merge_conflict": load("res://scenes/enemies/enemy_merge_conflict.tscn"),
 		"hallucination": load("res://scenes/enemies/enemy_hallucination.tscn"),
 		"context_rot": load("res://scenes/enemies/enemy_context_rot.tscn"),
-		"dependency_hell": load("res://scenes/enemies/enemy_dependency_hell.tscn"),
+		"deadlock": load("res://scenes/enemies/enemy_deadlock.tscn"),
 		"boss_kernel_panic": load("res://scenes/enemies/boss_kernel_panic.tscn"),
+		"boss_vanguard": load("res://scenes/enemies/boss_vanguard.tscn"),
 	}
 
 
@@ -209,7 +210,17 @@ func _spawn_enemy() -> void:
 
 
 func _spawn_boss() -> void:
-	var scene: PackedScene = _enemy_scenes.get("boss_kernel_panic")
+	# Alternate bosses: wave 5=Kernel Panic, wave 10=Vanguard, wave 15=KP, etc.
+	var boss_key: String
+	var boss_name: String
+	if (_current_wave / 5) % 2 == 1:
+		boss_key = "boss_kernel_panic"
+		boss_name = "Kernel Panic"
+	else:
+		boss_key = "boss_vanguard"
+		boss_name = "Vanguard"
+
+	var scene: PackedScene = _enemy_scenes.get(boss_key)
 	if scene == null:
 		return
 
@@ -228,9 +239,9 @@ func _spawn_boss() -> void:
 	var speed_scale := clampf(1.0 + (_current_wave - 1) * 0.05, 1.0, SPEED_SCALE_MAX)
 	boss.apply_scaling(health_scale, speed_scale)
 
-	Events.boss_spawned.emit(boss.enemy_id, "boss_kernel_panic", boss.position)
+	Events.boss_spawned.emit(boss.enemy_id, boss_key, boss.position)
 	_notify_boss_spawned.rpc()
-	print("WaveManager: BOSS Kernel Panic spawned on wave %d!" % _current_wave)
+	print("WaveManager: BOSS %s spawned on wave %d!" % [boss_name, _current_wave])
 
 
 func _random_edge_position() -> Vector3:

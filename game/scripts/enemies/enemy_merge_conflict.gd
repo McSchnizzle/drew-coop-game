@@ -40,12 +40,13 @@ func _ready() -> void:
 func _on_any_enemy_died(_eid: int, _kid: int, _clean: bool) -> void:
 	if _is_enraged or not _is_alive:
 		return
-	# Count living merge conflict enemies (same script)
-	var mc_alive := 0
+	# Count living T0 (adult) merge conflicts — enrage when adults are gone
+	var t0_alive := 0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if enemy.get_script() == get_script() and enemy.get("_is_alive") and enemy._is_alive:
-			mc_alive += 1
-	if mc_alive <= 1:
+		if enemy.get_script() == get_script() and enemy.get("_is_alive") and enemy._is_alive and enemy.size_tier == 0:
+			t0_alive += 1
+	# Last adult standing enrages; if all adults dead, children enrage
+	if (size_tier == 0 and t0_alive <= 1) or (size_tier > 0 and t0_alive == 0):
 		_is_enraged = true
 		speed = TIER_SPEED[size_tier] * 1.5
 		if _current_state == State.CHASE:

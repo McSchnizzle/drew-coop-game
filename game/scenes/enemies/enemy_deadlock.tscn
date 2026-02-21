@@ -1,0 +1,47 @@
+[gd_scene load_steps=8 format=3 uid="uid://enemy_dh001"]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_deadlock.gd" id="1_enemy"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(2.8, 2.8, 2.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_model"]
+size = Vector3(2.8, 2.8, 2.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_model"]
+albedo_color = Color(0.15, 0.15, 0.6, 1)
+emission_enabled = true
+emission = Color(0.15, 0.15, 0.6, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hurtbox"]
+size = Vector3(2.8, 2.8, 2.8)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_enemy"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:health")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:_current_state")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+
+[node name="Enemy" type="CharacterBody3D"]
+script = ExtResource("1_enemy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_body")
+
+[node name="EnemyModel" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_model")
+material_override = SubResource("StandardMaterial3D_model")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+shape = SubResource("BoxShape3D_hurtbox")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_enemy")

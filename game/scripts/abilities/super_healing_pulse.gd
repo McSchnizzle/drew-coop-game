@@ -7,6 +7,7 @@ const HEALING_AMOUNT: int = 50
 
 
 func activate(player: CharacterBody3D) -> void:
+	player._play_oneshot_anim.rpc("HealSuper", 1.2)
 	var players := get_tree().get_nodes_in_group("players")
 	for p in players:
 		if not p._is_alive:

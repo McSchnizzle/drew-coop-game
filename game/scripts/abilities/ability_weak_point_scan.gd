@@ -12,6 +12,7 @@ const HALLUCINATION_STUN: float = 2.0
 func activate(player_pos: Vector3, _aim_dir: Vector3) -> void:
 	var player = get_parent().get_parent()
 	var player_id: int = player.player_id
+	player._play_oneshot_anim.rpc("Cast", 0.8)
 
 	var enemies := get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:

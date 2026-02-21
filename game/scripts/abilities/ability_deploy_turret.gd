@@ -21,6 +21,7 @@ func activate(player_pos: Vector3, aim_dir: Vector3) -> void:
 
 	var player = get_parent().get_parent()
 	var player_id: int = player.player_id
+	player._play_oneshot_anim.rpc("Throw", 0.6)
 
 	var turret_pos := player_pos + Vector3(aim_dir.x, 0, aim_dir.z).normalized() * 3.0  # 60px / 20 = 3.0 units
 	_enforce_turret_limit()

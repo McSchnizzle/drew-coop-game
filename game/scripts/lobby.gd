@@ -57,7 +57,7 @@ const ENEMY_DATA := [
 		"description": "Ranged attacker that keeps its distance. Projectiles scramble your HUD for 5s — your health and stamina bars show fake values. Don't panic, your real stats are fine!",
 	},
 	{
-		"name": "DEPENDENCY HELL",
+		"name": "DEADLOCK",
 		"sprite": "res://assets/sprites/enemies/enemy_dependency_hell.png",
 		"wave": 5,
 		"accent": Color(0.20, 0.30, 0.70),

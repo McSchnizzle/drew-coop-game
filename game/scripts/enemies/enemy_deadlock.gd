@@ -1,21 +1,21 @@
-## Dependency Hell enemy — slow tanky, 10.0 unit aura disables player abilities each frame.
+## Deadlock enemy — slow tanky, 10.0 unit aura disables player abilities each frame.
 ## Players inside the aura receive "ability_disabled" status refreshed each frame.
 extends "res://scripts/enemies/enemy_base.gd"
 
-const DH_HP: int = 6
-const DH_SPEED: float = 1.5  # 30px / 20
-const DH_AURA_RADIUS: float = 10.0  # 200px / 20
-const DH_CONTACT_DMG: int = 12
+const DL_HP: int = 6
+const DL_SPEED: float = 1.5  # 30px / 20
+const DL_AURA_RADIUS: float = 10.0  # 200px / 20
+const DL_CONTACT_DMG: int = 12
 
 const COLOR: Color = Color(0.15, 0.15, 0.6)
 
 
 func _ready() -> void:
 	super._ready()
-	_load_glb_model("res://assets/models/enemy_quadshell.fbx")
-	health = DH_HP
-	speed = DH_SPEED
-	contact_damage = DH_CONTACT_DMG
+	_load_glb_model("res://assets/models/deadlock.fbx")
+	health = DL_HP
+	speed = DL_SPEED
+	contact_damage = DL_CONTACT_DMG
 	_current_state = State.IDLE
 
 
@@ -36,6 +36,6 @@ func _apply_aura() -> void:
 		if player.get("_is_alive") != null and not player._is_alive:
 			continue
 		var dist := global_position.distance_to(player.global_position)
-		if dist <= DH_AURA_RADIUS:
+		if dist <= DL_AURA_RADIUS:
 			if player.has_method("apply_status"):
 				player.apply_status("ability_disabled", 1.0)

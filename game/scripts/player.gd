@@ -14,15 +14,16 @@ const SPRINT_STAMINA_MAX: float = 100.0
 const SPRINT_STAMINA_DRAIN: float = 30.0
 const SPRINT_STAMINA_REGEN: float = 20.0
 
-# Shooting
-const SHOOT_COOLDOWN_TAP: float = 0.3
-const SHOOT_COOLDOWN_AUTO: float = 0.12
-const AUTO_FIRE_DELAY: float = 0.4
+# Shooting (semi-auto: one shot per click, slow repeat if held)
+const SHOOT_COOLDOWN: float = 0.35
 
 # Melee
 const MELEE_RANGE: float = 3.0
 const MELEE_DAMAGE: int = 3
 const MELEE_COOLDOWN: float = 0.5
+
+# Crouch
+const CROUCH_SPEED: float = 4.0
 
 # Mouse look
 const MOUSE_SENSITIVITY: float = 0.002
@@ -65,6 +66,7 @@ var input_ability: bool = false
 var input_super: bool = false
 var input_interact: bool = false
 var input_jump: bool = false
+var input_crouch: bool = false
 
 # ── Camera State (synced for remote player head tilt) ────────────────────
 var _camera_pitch: float = 0.0
@@ -72,16 +74,26 @@ var _camera_pitch: float = 0.0
 # ── Internal State (not synced) ──────────────────────────────────────────
 var _is_alive: bool = true
 var _shoot_cooldown_timer: float = 0.0
-var _shoot_hold_time: float = 0.0
-var _is_auto_firing: bool = false
+var _shoot_pressed_last_frame: bool = false
 var _melee_cooldown_timer: float = 0.0
 var _projectile_scene: PackedScene = null
 var _sprint_toggled: bool = false
+var _crouch_toggled: bool = false
 var _status_effects: Dictionary = {}
 var _is_reviving_someone: bool = false
 var _using_controller: bool = false
 var _is_repo_owner: bool = false
 var _current_role: String = "striker"
+var _anim_player: AnimationPlayer = null
+var _current_anim: String = ""
+var _loaded_model: Node3D = null  # The current role's model instance
+var _anim_override: String = ""  # One-shot anim that overrides locomotion
+var _anim_override_timer: float = 0.0  # Time remaining for override
+const ANIM_BLEND: float = 0.25
+const ROLE_MODELS := {
+	"striker": "res://assets/models/striker/striker.fbx",
+	"engineer": "res://assets/models/pete/pete.fbx",
+}
 
 
 func _ready() -> void:
@@ -90,33 +102,15 @@ func _ready() -> void:
 	if name.is_valid_int():
 		player_id = name.to_int()
 
-	# Load the actual 3D player model, auto-scaled to match collision capsule
-	var player_model_scene = load("res://assets/models/player_robot.fbx")
-	if player_model_scene:
-		var model_instance = player_model_scene.instantiate()
-		$PlayerModel.add_child(model_instance)
-		# Auto-scale to collision capsule height
-		var target_h := 1.8  # default
-		var col = get_node_or_null("CollisionShape3D")
-		if col and col.shape is CapsuleShape3D:
-			target_h = col.shape.height
-		var bounds := _compute_node_bounds(model_instance)
-		if bounds.size.y > 0.01:
-			var s := target_h / bounds.size.y
-			model_instance.scale *= s  # Multiply to preserve FBX built-in transforms
-			model_instance.position.y = -bounds.position.y * s
-		# Hide placeholder meshes
-		if $PlayerModel.has_node("Body"):
-			$PlayerModel/Body.visible = false
-		if $PlayerModel.has_node("Head"):
-			$PlayerModel/Head.visible = false
+	# Load player model based on role (default striker, swapped if role changes)
+	_load_role_model(_current_role)
 
-	# Load blaster weapon model and attach to shoot point
-	var blaster_scene = load("res://assets/models/blaster_kenney.glb")
-	if blaster_scene:
-		var blaster = blaster_scene.instantiate()
-		blaster.scale = Vector3(0.5, 0.5, 0.5)
-		$ShootPoint.add_child(blaster)
+	# Load pistol weapon model and attach to shoot point
+	var pistol_scene = load("res://assets/models/gun_pistol.fbx")
+	if pistol_scene:
+		var pistol = pistol_scene.instantiate()
+		pistol.scale = Vector3(0.01, 0.01, 0.01)  # FBX scale-down
+		$ShootPoint.add_child(pistol)
 
 	# Only the local player gets the camera and mouse capture.
 	if player_id == multiplayer.get_unique_id():
@@ -170,6 +164,9 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Update animation on all peers (uses synced velocity/state)
+	_update_player_animation()
+
 	if not _is_alive:
 		return
 
@@ -200,6 +197,7 @@ func _gather_input() -> void:
 		input_super = false
 		input_interact = false
 		input_jump = false
+		input_crouch = false
 		return
 
 	# Camera-relative WASD movement
@@ -244,12 +242,18 @@ func _gather_input() -> void:
 	input_interact = Input.is_action_pressed("interact")
 	input_jump = Input.is_action_just_pressed("jump")
 
-	# Sprint toggle
+	# Crouch toggle
+	if Input.is_action_just_pressed("crouch"):
+		_crouch_toggled = not _crouch_toggled
+	# Sprint toggle (cancels crouch)
 	if Input.is_action_just_pressed("sprint"):
 		_sprint_toggled = not _sprint_toggled
+		if _sprint_toggled:
+			_crouch_toggled = false
 	if stamina <= 0.0:
 		_sprint_toggled = false
 	input_sprint = _sprint_toggled
+	input_crouch = _crouch_toggled
 
 
 # ── Server-Side Physics (authoritative game logic) ──────────────────────
@@ -288,14 +292,22 @@ func _server_process(delta: float) -> void:
 		speed_mult *= 1.2
 
 	# -- Movement --
-	var current_speed := (SPRINT_SPEED if is_sprinting else RUN_SPEED) * speed_mult
+	var current_speed: float
+	if is_sprinting:
+		current_speed = SPRINT_SPEED
+	elif input_crouch:
+		current_speed = CROUCH_SPEED
+	else:
+		current_speed = RUN_SPEED
+	current_speed *= speed_mult
 	velocity.x = input_move_dir.x * current_speed
 	velocity.z = input_move_dir.z * current_speed
 
-	# -- Gravity & Jump --
+	# -- Gravity & Jump (jumping cancels crouch) --
 	if is_on_floor():
 		if input_jump:
 			velocity.y = JUMP_VELOCITY
+			input_crouch = false
 	else:
 		velocity.y -= PLAYER_GRAVITY * delta
 
@@ -319,38 +331,28 @@ func _server_process(delta: float) -> void:
 	input_jump = false
 
 
-# ── Shooting System (tap + hold auto-fire) ───────────────────────────────
+# ── Shooting System (semi-auto: fires on press, slow repeat if held) ─────
 
 func _process_shooting(delta: float) -> void:
 	_shoot_cooldown_timer = maxf(_shoot_cooldown_timer - delta, 0.0)
 
-	var auto_cooldown := SHOOT_COOLDOWN_AUTO
+	var cooldown := SHOOT_COOLDOWN
 	if has_status("overdrive"):
-		auto_cooldown *= 0.5
+		cooldown *= 0.5
 
-	if input_shoot:
-		_shoot_hold_time += delta
+	if input_shoot and _shoot_cooldown_timer <= 0.0:
+		_fire_projectile()
+		_shoot_cooldown_timer = cooldown
 
-		if not _is_auto_firing:
-			if _shoot_hold_time <= delta + 0.001 and _shoot_cooldown_timer <= 0.0:
-				_fire_projectile()
-				_shoot_cooldown_timer = SHOOT_COOLDOWN_TAP
-
-			if _shoot_hold_time >= AUTO_FIRE_DELAY:
-				_is_auto_firing = true
-				_shoot_cooldown_timer = 0.0
-		else:
-			if _shoot_cooldown_timer <= 0.0:
-				_fire_projectile()
-				_shoot_cooldown_timer = auto_cooldown
-	else:
-		_shoot_hold_time = 0.0
-		_is_auto_firing = false
+	_shoot_pressed_last_frame = input_shoot
 
 
 func _fire_projectile() -> void:
 	if _projectile_scene == null:
 		return
+
+	# Trigger shoot animation on all peers
+	_play_oneshot_anim.rpc("Shoot", 0.4)
 
 	# Spawn projectile from camera position along aim direction
 	var cam := $CameraMount/Camera3D as Camera3D
@@ -378,6 +380,7 @@ func _fire_projectile() -> void:
 
 func _do_melee() -> void:
 	_show_melee_visual.rpc(input_aim_dir)
+	_play_oneshot_anim.rpc("Melee", 0.6)
 
 	var melee_ability_mgr = get_node_or_null("AbilityManager")
 	var melee_dmg := MELEE_DAMAGE
@@ -539,6 +542,7 @@ func take_damage(amount: int) -> void:
 	if _is_downed:
 		return
 	health -= amount
+	_play_oneshot_anim.rpc("HitReaction", 0.5)
 	if health <= 0:
 		health = 0
 		die()
@@ -548,6 +552,7 @@ func die() -> void:
 	_is_downed = true
 	_bleedout_timer = BLEEDOUT_TIME
 	velocity = Vector3.ZERO
+	_play_oneshot_anim.rpc("KnockedDown", 1.5)
 	Events.player_downed.emit(player_id, global_position)
 
 	# Disable collision
@@ -568,8 +573,48 @@ func _show_downed_visual() -> void:
 	_set_model_color(COLOR_DOWNED)
 
 
+func _load_role_model(role: String) -> void:
+	# Remove old model if swapping roles
+	if _loaded_model:
+		_loaded_model.queue_free()
+		_loaded_model = null
+		_anim_player = null
+		_current_anim = ""
+
+	var model_path: String = ROLE_MODELS.get(role, ROLE_MODELS["striker"])
+	var player_model_scene = load(model_path)
+	if player_model_scene:
+		_loaded_model = player_model_scene.instantiate()
+		$PlayerModel.add_child(_loaded_model)
+		# Auto-scale to collision capsule height
+		var target_h := 1.8
+		var col = get_node_or_null("CollisionShape3D")
+		if col and col.shape is CapsuleShape3D:
+			target_h = col.shape.height
+		var bounds := _compute_node_bounds(_loaded_model)
+		if bounds.size.y > 0.01:
+			var s := target_h / bounds.size.y
+			_loaded_model.scale *= s
+			_loaded_model.position.y = -bounds.position.y * s
+	# Hide placeholder meshes
+	if $PlayerModel.has_node("Body"):
+		$PlayerModel/Body.visible = false
+	if $PlayerModel.has_node("Head"):
+		$PlayerModel/Head.visible = false
+	# Set up animations (Mixamo rig shared across all characters)
+	if _loaded_model:
+		_anim_player = _find_anim_player_in(_loaded_model)
+		if _anim_player:
+			_anim_player.stop()
+			_anim_player.autoplay = ""
+		_load_player_animations(_loaded_model)
+
+
 @rpc("authority", "call_local", "reliable")
 func _set_role_color(role: String) -> void:
+	# Swap model if role changed
+	if role != _current_role:
+		_load_role_model(role)
 	_current_role = role
 	if role == "engineer":
 		_set_model_color(COLOR_ENGINEER)
@@ -617,6 +662,154 @@ func _collect_mesh_points(node: Node, parent_xform: Transform3D, points: PackedV
 			points.append(xform * aabb.get_endpoint(i))
 	for child in node.get_children():
 		_collect_mesh_points(child, xform, points)
+
+
+# ── Animation System ─────────────────────────────────────────────────────
+
+func _find_anim_player_in(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for child in node.get_children():
+		var found := _find_anim_player_in(child)
+		if found:
+			return found
+	return null
+
+
+func _load_player_animations(model_node: Node3D) -> void:
+	if not _anim_player:
+		_anim_player = AnimationPlayer.new()
+		model_node.add_child(_anim_player)
+		_anim_player.root_node = _anim_player.get_path_to(model_node)
+
+	var lib := AnimationLibrary.new()
+	if _anim_player.has_animation_library(""):
+		_anim_player.remove_animation_library("")
+	_anim_player.add_animation_library("", lib)
+
+	var anim_map := {
+		"Idle": "res://assets/models/ybot/pistol_idle.fbx",
+		"Walk": "res://assets/models/ybot/pistol_walk.fbx",
+		"Run": "res://assets/models/ybot/pistol_run.fbx",
+		"Sprint": "res://assets/models/ybot/sprint.fbx",
+		"Jump": "res://assets/models/ybot/pistol_jump.fbx",
+		"Crouch": "res://assets/models/ybot/pistol_crouch_idle.fbx",
+		"CrouchWalk": "res://assets/models/ybot/crouch_walk.fbx",
+		"Shoot": "res://assets/models/ybot/pistol_shoot.fbx",
+		"Melee": "res://assets/models/ybot/melee_standing_melee_attack_horizontal.fbx",
+		"HitReaction": "res://assets/models/ybot/player_hit_reaction.fbx",
+		"Taunt": "res://assets/models/ybot/melee_standing_taunt_battlecry.fbx",
+		"HealSuper": "res://assets/models/ybot/magic_heal.fbx",
+		"Throw": "res://assets/models/ybot/throw.fbx",
+		"Cast": "res://assets/models/ybot/magic_cast.fbx",
+		"PowerUp": "res://assets/models/ybot/power_up.fbx",
+		"Revive": "res://assets/models/ybot/revive.fbx",
+		"GetUp": "res://assets/models/ybot/getting_up_2.fbx",
+		"KnockedDown": "res://assets/models/ybot/stunned.fbx",
+		"Landing": "res://assets/models/ybot/hard_landing.fbx",
+		"Crawl": "res://assets/models/ybot/crawl_backward_1.fbx",
+		"Death": "res://assets/models/ybot/death_front.fbx",
+	}
+	for anim_name in anim_map:
+		var scene: PackedScene = load(anim_map[anim_name]) as PackedScene
+		if not scene:
+			continue
+		var temp: Node = scene.instantiate()
+		var temp_player := _find_anim_player_in(temp)
+		if not temp_player:
+			temp.free()
+			continue
+		var anim_list := temp_player.get_animation_list()
+		if anim_list.is_empty():
+			temp.free()
+			continue
+		var pick_name: String = anim_list[0]
+		for candidate in anim_list:
+			if "mixamo" in candidate.to_lower():
+				pick_name = candidate
+				break
+		var source_anim: Animation = temp_player.get_animation(pick_name)
+		if source_anim:
+			var anim_copy := source_anim.duplicate()
+			_strip_player_root_motion(anim_copy)
+			if anim_name in ["Idle", "Walk", "Run", "Sprint", "Crouch", "CrouchWalk", "Crawl"]:
+				anim_copy.loop_mode = Animation.LOOP_LINEAR
+			lib.add_animation(anim_name, anim_copy)
+		temp.free()
+	_play_player_anim("Idle")
+
+
+func _strip_player_root_motion(anim: Animation) -> void:
+	for i in anim.get_track_count():
+		if anim.track_get_type(i) != Animation.TYPE_POSITION_3D:
+			continue
+		var path_str := str(anim.track_get_path(i))
+		if "Hips" not in path_str:
+			continue
+		for key_idx in anim.track_get_key_count(i):
+			var pos: Vector3 = anim.track_get_key_value(i, key_idx)
+			anim.track_set_key_value(i, key_idx, Vector3(0.0, pos.y, 0.0))
+		break
+
+
+func _play_player_anim(anim_name: String) -> void:
+	if not _anim_player or anim_name == _current_anim:
+		return
+	for try_name in [anim_name, anim_name.to_lower(), anim_name.to_upper()]:
+		if _anim_player.has_animation(try_name):
+			_anim_player.play(try_name, ANIM_BLEND)
+			_current_anim = anim_name
+			return
+	for a_name in _anim_player.get_animation_list():
+		if anim_name.to_lower() in a_name.to_lower():
+			_anim_player.play(a_name, ANIM_BLEND)
+			_current_anim = anim_name
+			return
+
+
+@rpc("authority", "call_local", "reliable")
+func _play_oneshot_anim(anim_name: String, duration: float) -> void:
+	_anim_override = anim_name
+	_anim_override_timer = duration
+	_current_anim = ""  # Force re-play even if same anim
+	_play_player_anim(anim_name)
+
+
+func _update_player_animation() -> void:
+	if not _is_alive:
+		_play_player_anim("Death")
+		return
+	if _is_downed:
+		# After knockdown animation finishes, crawl if moving, otherwise stay in Death pose
+		if _anim_override_timer > 0.0:
+			_anim_override_timer -= get_physics_process_delta_time()
+			_play_player_anim(_anim_override)
+		elif Vector2(velocity.x, velocity.z).length() > 0.5:
+			_play_player_anim("Crawl")
+		else:
+			_play_player_anim("Death")
+		return
+	# One-shot override (Shoot, HitReaction, etc.) — let it play out before returning to locomotion
+	if _anim_override_timer > 0.0:
+		_anim_override_timer -= get_physics_process_delta_time()
+		_play_player_anim(_anim_override)
+		return
+	if not is_on_floor():
+		_play_player_anim("Jump")
+		return
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if input_crouch:
+		if horizontal_speed > 1.0:
+			_play_player_anim("CrouchWalk")
+		else:
+			_play_player_anim("Crouch")
+		return
+	if horizontal_speed > SPRINT_SPEED * 0.8:
+		_play_player_anim("Sprint")
+	elif horizontal_speed > 1.0:
+		_play_player_anim("Walk")
+	else:
+		_play_player_anim("Idle")
 
 
 @rpc("authority", "call_local", "reliable")

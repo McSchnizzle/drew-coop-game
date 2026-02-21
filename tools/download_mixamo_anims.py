@@ -1,195 +1,103 @@
 #!/usr/bin/env python3
-"""Download Mixamo animations for Y Bot via the Mixamo API."""
+"""Download animations from Mixamo API for a given character."""
+import requests, time, os
 
-import json
-import os
-import sys
-import time
-import urllib.request
-import urllib.error
+API = "https://www.mixamo.com/api/v1"
+KEY = "mixamo2"
+BEARER = os.environ.get("MIXAMO_BEARER", "PASTE_TOKEN_HERE")  # Get from localStorage.access_token in browser console
+HEADERS = {"X-Api-Key": KEY, "Authorization": f"Bearer {BEARER}", "Content-Type": "application/json"}
 
-TOKEN = sys.argv[1] if len(sys.argv) > 1 else ""
-if not TOKEN:
-    print("Usage: python3 download_mixamo_anims.py <access_token>")
-    sys.exit(1)
+# System character ID (Y Bot - standard Mixamo humanoid)
+CHAR_ID = "4f5d21e1-4ccc-41f1-b35b-c6377509eaac"
 
-CHARACTER_ID = "4f5d21e1-4ccc-41f1-b35b-fb2547bd8493"  # Y Bot
-
-HEADERS = {
-    "Authorization": f"Bearer {TOKEN}",
-    "X-Api-Key": "mixamo2",
-    "Accept": "application/json",
-    "Content-Type": "application/json",
+# Animations to download: local_name -> search query
+ANIMS = {
+    "pistol_idle": "Pistol Idle",
+    "pistol_walk": "Walking With Pistol",
+    "pistol_run": "Pistol Run",
+    "pistol_shoot": "Firing Rifle",
 }
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "game", "assets", "models", "ybot")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# (search_query, preferred_name_match, filename, description)
-ANIMATIONS = [
-    ("breathing idle", None, "idle.fbx", "Idle"),
-    ("walking", "Walking", "walk.fbx", "Walking"),
-    ("running", "Running", "run.fbx", "Running"),
-    ("dying", None, "death.fbx", "Dying/Death"),
-    ("hit reaction", None, "hit_reaction.fbx", "Hit Reaction"),
-    ("cross punch", None, "attack.fbx", "Attack/Punch"),
-]
+OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "game", "assets", "models", "ybot")
 
 
-def api_get(url):
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+def search_anim(query):
+    r = requests.get(f"{API}/products", params={"page": 1, "limit": 5, "type": "Motion", "query": query}, headers=HEADERS)
+    r.raise_for_status()
+    results = r.json().get("results", [])
+    return results[0] if results else None
 
 
-def api_post(url, data):
-    body = json.dumps(data).encode()
-    req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+def get_product_details(product_id):
+    r = requests.get(f"{API}/products/{product_id}", params={"character_id": CHAR_ID}, headers=HEADERS)
+    r.raise_for_status()
+    return r.json()
 
 
-def get_animation_details(product_id):
-    """Get full animation details including the numeric model-id and params."""
-    url = f"https://www.mixamo.com/api/v1/products/{product_id}?similar=0&character_id={CHARACTER_ID}"
-    return api_get(url)
-
-
-def search_animation(query, preferred_name=None):
-    """Search for an animation and return the best match's product details."""
-    url = f"https://www.mixamo.com/api/v1/products?page=1&limit=20&query={urllib.request.quote(query)}&type=Motion,MotionPack"
-    data = api_get(url)
-    results = data.get("results", [])
-    if not results:
-        return None
-
-    # Try to find preferred name match first
-    if preferred_name:
-        for r in results:
-            if r.get("name", "").lower() == preferred_name.lower():
-                return get_animation_details(r["id"])
-
-    # Fall back to first result
-    return get_animation_details(results[0]["id"])
-
-
-def export_animation(anim_details):
-    """Request an FBX export of the animation applied to Y Bot."""
-    details = anim_details.get("details", {})
-    gms = details.get("gms_hash", {})
-
-    # Build params string from the parameter array
-    params_array = gms.get("params", [])
-    param_values = ",".join(str(p[1]) for p in params_array) if params_array else "0"
-
-    export_body = {
-        "character_id": CHARACTER_ID,
-        "gms_hash": [
-            {
-                "model-id": gms.get("model-id", 0),
-                "mirror": gms.get("mirror", False),
-                "trim": gms.get("trim", [0, 100]),
-                "inplace": gms.get("inplace", False),
-                "arm-space": gms.get("arm-space", 0),
-                "params": param_values,
-                "overdrive": 0,
-            }
-        ],
-        "preferences": {
-            "format": "fbx7",
-            "skin": "true",
-            "fps": "60",
-            "reducekf": "0",
-        },
+def export_anim(product, details):
+    gms = details.get("details", {}).get("gms_hash", {})
+    # Convert params from [[name, val], ...] to comma-separated strings
+    params_list = gms.get("params", [])
+    param_names = ",".join(p[0] for p in params_list) if params_list else ""
+    param_values = ",".join(str(p[1]) for p in params_list) if params_list else ""
+    body = {
+        "character_id": CHAR_ID,
+        "gms_hash": [{
+            "model-id": gms.get("model-id"),
+            "mirror": gms.get("mirror", False),
+            "trim": [0, 100],
+            "overdrive": gms.get("overdrive", 0),
+            "params": param_names,
+            "param-values": param_values,
+            "arm-space": gms.get("arm-space", 0),
+            "inplace": gms.get("inplace", False),
+        }],
+        "preferences": {"format": "fbx7", "skin": "false", "fps": "30", "reducekf": "0"},
+        "product_name": product["description"],
         "type": "Motion",
-        "product_name": anim_details.get("name", "animation"),
     }
-
-    return api_post("https://www.mixamo.com/api/v1/animations/export", export_body)
-
-
-def poll_download(max_wait=120):
-    """Poll the monitor endpoint until the export is ready."""
-    url = f"https://www.mixamo.com/api/v1/characters/{CHARACTER_ID}/monitor"
-    start = time.time()
-    while time.time() - start < max_wait:
-        data = api_get(url)
-        status = data.get("status", "")
-        if status == "completed":
-            return data.get("job_result", "")
-        elif status == "failed":
-            msg = data.get("job_result", {}).get("message", "Unknown error")
-            print(f"  Export failed: {msg}")
-            return None
-        time.sleep(3)
-    print("  Timed out waiting for export")
-    return None
+    r = requests.post(f"{API}/animations/export", json=body, headers=HEADERS)
+    r.raise_for_status()
+    return r.json()
 
 
-def download_file(url, filepath):
-    """Download a file from URL."""
-    req = urllib.request.Request(url)
-    with urllib.request.urlopen(req) as resp:
-        with open(filepath, "wb") as f:
-            while True:
-                chunk = resp.read(8192)
-                if not chunk:
-                    break
-                f.write(chunk)
-    return os.path.getsize(filepath)
+def wait_and_download(name):
+    for _ in range(60):
+        time.sleep(2)
+        r = requests.get(f"{API}/characters/{CHAR_ID}/monitor", headers=HEADERS)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("status") == "completed":
+            url = data.get("job_result")
+            if url:
+                print(f"  Downloading {name}...")
+                dl = requests.get(url)
+                dl.raise_for_status()
+                path = os.path.join(OUT_DIR, f"{name}.fbx")
+                with open(path, "wb") as f:
+                    f.write(dl.content)
+                print(f"  Saved: {path}")
+                return True
+        elif data.get("status") == "failed":
+            print(f"  Export failed for {name}")
+            return False
+    print(f"  Timeout waiting for {name}")
+    return False
 
 
 def main():
-    print(f"Output: {OUTPUT_DIR}")
-    print(f"Downloading {len(ANIMATIONS)} animations for Y Bot at 60 FPS\n")
-
-    # Verify token
-    print("Verifying API access...")
-    try:
-        test = api_get("https://www.mixamo.com/api/v1/characters?page=1&limit=1&type=Character")
-        if isinstance(test, list):
-            print(f"  API OK\n")
-        else:
-            print(f"  API OK\n")
-    except urllib.error.HTTPError as e:
-        print(f"  API error: {e.code} {e.reason}")
-        if e.code == 401:
-            print("  Token expired. Get a new one from mixamo.com console.")
-        sys.exit(1)
-
-    for query, preferred, filename, desc in ANIMATIONS:
-        filepath = os.path.join(OUTPUT_DIR, filename)
-        print(f"[{desc}] Searching '{query}'...")
-
-        anim = search_animation(query, preferred)
-        if not anim:
-            print(f"  No results, skipping.\n")
+    os.makedirs(OUT_DIR, exist_ok=True)
+    for local_name, query in ANIMS.items():
+        print(f"\nSearching: {query}")
+        product = search_anim(query)
+        if not product:
+            print(f"  Not found!")
             continue
-
-        gms = anim.get("details", {}).get("gms_hash", {})
-        print(f"  Found: {anim['name']} (model-id: {gms.get('model-id', '?')})")
-        print(f"  Exporting (FBX, 60fps)...")
-
-        try:
-            export_animation(anim)
-        except urllib.error.HTTPError as e:
-            body = e.read().decode() if e.fp else ""
-            print(f"  Export failed: {e.code} {body[:200]}\n")
-            continue
-
-        download_url = poll_download()
-        if not download_url:
-            print(f"  No download URL, skipping.\n")
-            continue
-
-        print(f"  Downloading {filename}...")
-        size = download_file(download_url, filepath)
-        print(f"  Saved {filename} ({size / 1024:.0f} KB)\n")
-
-    print("Done!\n\nFiles in ybot/:")
-    for f in sorted(os.listdir(OUTPUT_DIR)):
-        fpath = os.path.join(OUTPUT_DIR, f)
-        print(f"  {f} ({os.path.getsize(fpath) / 1024:.0f} KB)")
+        print(f"  Found: {product['description']} ({product['id']})")
+        details = get_product_details(product["id"])
+        print(f"  Exporting...")
+        export_anim(product, details)
+        wait_and_download(local_name)
 
 
 if __name__ == "__main__":

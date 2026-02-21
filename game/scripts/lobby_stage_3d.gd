@@ -13,7 +13,11 @@ const ROLE_ACCENTS := {
 const EMPTY_COLOR := Color(0.165, 0.165, 0.220)
 const EMPTY_ACCENT := Color(0.25, 0.25, 0.35)
 const MAX_PLAYERS := 4
-const PLAYER_MODEL_PATH := "res://assets/models/player_robot.fbx"
+const ROLE_MODELS := {
+	"striker": "res://assets/models/striker/striker.fbx",
+	"engineer": "res://assets/models/pete/pete.fbx",
+}
+const FALLBACK_MODEL_PATH := "res://assets/models/player_robot.fbx"
 
 # Character proportions
 const BODY_RADIUS := 0.18
@@ -84,8 +88,9 @@ func _create_character(slot_index: int, role: String, opacity: float) -> void:
 	var color: Color = ROLE_COLORS.get(role, EMPTY_COLOR)
 	var filled := opacity >= 1.0
 
-	# Try to load the actual 3D model
-	var model_scene = load(PLAYER_MODEL_PATH)
+	# Try to load the role-specific 3D model (empty slots use placeholder)
+	var model_path: String = ROLE_MODELS.get(role, "")
+	var model_scene = load(model_path) if not model_path.is_empty() else null
 	if model_scene:
 		var model = model_scene.instantiate()
 		root.add_child(model)
@@ -98,10 +103,15 @@ func _create_character(slot_index: int, role: String, opacity: float) -> void:
 		if bounds.size.y > 0.01:
 			var s := CHAR_TOTAL_HEIGHT / bounds.size.y
 			model.scale *= s  # Multiply to preserve FBX built-in transforms
-			model.position.y = -bounds.position.y * s
-		# Apply role-based tinting
-		var mat := _make_neon_mat(color, opacity, 0.2 if filled else 0.0)
-		_apply_material_recursive(model, mat)
+		# Recompute bounds after scaling so foot alignment is accurate
+		model.position.y = 0.0
+		var scaled_bounds := _compute_node_bounds(model)
+		if scaled_bounds.size.y > 0.01:
+			model.position.y = -scaled_bounds.position.y
+		# Only tint empty/fallback slots — real role models keep their original textures
+		if not filled:
+			var mat := _make_neon_mat(color, opacity, 0.0)
+			_apply_material_recursive(model, mat)
 	else:
 		# Fallback: keep primitive meshes if model fails to load
 		_create_placeholder_character(root, color, opacity, filled)

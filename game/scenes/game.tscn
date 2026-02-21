@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_merge_conflict.tscn" id="5_enemy_mc"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_hallucination.tscn" id="6_enemy_hall"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy_context_rot.tscn" id="7_enemy_cr"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/enemy_dependency_hell.tscn" id="8_enemy_dh"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy_deadlock.tscn" id="8_enemy_dh"]
 [ext_resource type="PackedScene" path="res://scenes/projectile_enemy.tscn" id="9_proj_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/boss_kernel_panic.tscn" id="18_boss_kp"]
 [ext_resource type="PackedScene" path="res://scenes/turret.tscn" id="10_turret"]
@@ -144,7 +144,7 @@ _spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
 spawn_path = NodePath("../Players")
 
 [node name="EnemySpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("res://scenes/enemies/enemy_merge_conflict.tscn", "res://scenes/enemies/enemy_hallucination.tscn", "res://scenes/enemies/enemy_context_rot.tscn", "res://scenes/enemies/enemy_dependency_hell.tscn", "res://scenes/enemies/boss_kernel_panic.tscn")
+_spawnable_scenes = PackedStringArray("res://scenes/enemies/enemy_merge_conflict.tscn", "res://scenes/enemies/enemy_hallucination.tscn", "res://scenes/enemies/enemy_context_rot.tscn", "res://scenes/enemies/enemy_deadlock.tscn", "res://scenes/enemies/boss_kernel_panic.tscn")
 spawn_path = NodePath("../Enemies")
 
 [node name="ProjectileSpawner" type="MultiplayerSpawner" parent="."]

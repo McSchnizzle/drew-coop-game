@@ -75,7 +75,7 @@ var _merge_conflict_scene: PackedScene = null
 
 func _ready() -> void:
 	super._ready()
-	_load_glb_model("res://assets/models/monster_dragon.fbx")
+	_load_glb_model("res://assets/models/kernel_panic_new.fbx")
 	health = BOSS_HP
 	max_health = BOSS_HP
 	speed = BOSS_SPEED
