@@ -9,7 +9,7 @@ const MERGE_CONFLICT_SCENE_PATH: String = "res://scenes/enemies/enemy_merge_conf
 # -- Base Stats (converted: speeds / 20) ---
 const BOSS_HP: int = 80
 const BOSS_SPEED: float = 1.75  # 35px / 20
-const BOSS_CONTACT_DMG: int = 20
+const BOSS_CONTACT_DMG: int = 2
 const BOSS_CONTACT_RANGE: float = 4.0  # 80px / 20
 const BOSS_COLOR: Color = Color(0.0, 0.3, 0.9)
 
@@ -21,7 +21,7 @@ const LUNGE_DURATION: float = 0.5
 
 # -- Projectile Parameters (speed / 20) ---
 const PROJ_SPEED: float = 9.0  # 180px / 20
-const PROJ_DAMAGE: int = 8
+const PROJ_DAMAGE: int = 1
 const PROJ_COOLDOWN: Array[float] = [999.0, 5.0, 3.0]
 const PROJ_COUNT: Array[int] = [0, 3, 5]
 const PROJ_SPREAD_DEG: Array[float] = [0.0, 30.0, 36.0]
@@ -76,6 +76,14 @@ var _merge_conflict_scene: PackedScene = null
 func _ready() -> void:
 	super._ready()
 	_load_glb_model("res://assets/models/kernel_panic_new.fbx")
+	_load_external_animations({
+		"Idle": "res://assets/models/ybot/idle.fbx",
+		"Walk": "res://assets/models/ybot/walk.fbx",
+		"Run": "res://assets/models/ybot/run.fbx",
+		"Death": "res://assets/models/ybot/death.fbx",
+		"HitReaction": "res://assets/models/ybot/hit_reaction.fbx",
+		"Attack": "res://assets/models/ybot/attack.fbx",
+	})
 	health = BOSS_HP
 	max_health = BOSS_HP
 	speed = BOSS_SPEED

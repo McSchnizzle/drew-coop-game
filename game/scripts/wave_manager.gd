@@ -22,7 +22,7 @@ const REST_DURATIONS: Array[float] = [5.0, 5.0, 5.0, 4.0, 4.0, 3.0]
 const WAVE_ENEMY_COUNTS: Array[int] = [3, 5, 7, 10, 13]
 
 # Scaling clamps
-const HEALTH_SCALE_MAX: float = 3.0
+const HEALTH_SCALE_MAX: float = 5.0
 const SPEED_SCALE_MAX: float = 1.5
 const DAMAGE_SCALE_MAX: float = 2.5
 
@@ -57,6 +57,7 @@ var wave_state_value: int = 0  # int representation of WaveState for sync
 
 
 func _ready() -> void:
+	Events.enemy_died.connect(_on_enemy_died_for_kill_feed)
 	_enemy_scenes = {
 		"merge_conflict": load("res://scenes/enemies/enemy_merge_conflict.tscn"),
 		"hallucination": load("res://scenes/enemies/enemy_hallucination.tscn"),
@@ -202,7 +203,7 @@ func _spawn_enemy() -> void:
 	enemies_node.add_child(enemy, true)
 
 	# Apply difficulty scaling AFTER add_child so _ready() has set base stats
-	var health_scale := clampf(1.0 + (_current_wave - 1) * 0.15, 1.0, HEALTH_SCALE_MAX)
+	var health_scale := clampf(1.0 + (_current_wave - 1) * 0.35, 1.0, HEALTH_SCALE_MAX)
 	var speed_scale := clampf(1.0 + (_current_wave - 1) * 0.05, 1.0, SPEED_SCALE_MAX)
 	enemy.apply_scaling(health_scale, speed_scale)
 
@@ -235,7 +236,7 @@ func _spawn_boss() -> void:
 	enemies_node.add_child(boss, true)
 
 	# Apply difficulty scaling AFTER add_child so _ready() has set base stats
-	var health_scale := clampf(1.0 + (_current_wave - 1) * 0.15, 1.0, HEALTH_SCALE_MAX)
+	var health_scale := clampf(1.0 + (_current_wave - 1) * 0.35, 1.0, HEALTH_SCALE_MAX)
 	var speed_scale := clampf(1.0 + (_current_wave - 1) * 0.05, 1.0, SPEED_SCALE_MAX)
 	boss.apply_scaling(health_scale, speed_scale)
 
@@ -379,6 +380,40 @@ func _show_boss_incoming_sign() -> void:
 		if is_instance_valid(container):
 			container.queue_free()
 	)
+
+
+# ── Kill Feed ────────────────────────────────────────────────────────────────
+
+func _on_enemy_died_for_kill_feed(enemy_id: int, killed_by: int, _clean_kill: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	var killer_name: String = NetworkManager.player_names.get(killed_by, "Player %d" % killed_by)
+	# Determine enemy type from the node name prefix or class
+	var enemy_type := "Bug"
+	var enemies_node = get_tree().current_scene.get_node_or_null("Enemies")
+	if enemies_node:
+		for child in enemies_node.get_children():
+			if child.get("enemy_id") == enemy_id:
+				var script_path: String = child.get_script().resource_path if child.get_script() else ""
+				if "merge_conflict" in script_path:
+					enemy_type = "Merge Conflict"
+				elif "hallucination" in script_path:
+					enemy_type = "Hallucination"
+				elif "context_rot" in script_path:
+					enemy_type = "Context Rot"
+				elif "deadlock" in script_path:
+					enemy_type = "Deadlock"
+				elif "kernel_panic" in script_path:
+					enemy_type = "Kernel Panic"
+				elif "vanguard" in script_path:
+					enemy_type = "Vanguard"
+				break
+	_notify_kill_feed.rpc(killer_name, enemy_type)
+
+
+@rpc("authority", "call_local", "reliable")
+func _notify_kill_feed(killer_name: String, enemy_type: String) -> void:
+	Events.kill_feed_entry.emit(killer_name, enemy_type)
 
 
 # ── HUD Helpers ──────────────────────────────────────────────────────────────

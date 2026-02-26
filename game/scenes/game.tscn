@@ -165,57 +165,56 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="HealthLabel" type="Label" parent="UI/HUD"]
+[node name="WaveLabel" type="Label" parent="UI/HUD"]
 layout_mode = 0
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 200.0
 offset_bottom = 40.0
-text = "Health: 100"
-
-[node name="StaminaBar" type="ProgressBar" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 44.0
-offset_right = 200.0
-offset_bottom = 64.0
-value = 100.0
-
-[node name="WaveLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 72.0
-offset_right = 200.0
-offset_bottom = 96.0
 text = "Wave: 1"
 
-[node name="AbilityLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 100.0
-offset_right = 200.0
-offset_bottom = 124.0
-text = "Ability: READY"
-
-[node name="SuperLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 128.0
-offset_right = 200.0
-offset_bottom = 152.0
-text = "Super: 0%"
-
-[node name="Crosshair" type="ColorRect" parent="UI/HUD"]
+[node name="Crosshair" type="Control" parent="UI/HUD"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -2.0
-offset_top = -2.0
-offset_right = 2.0
-offset_bottom = 2.0
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+
+[node name="Top" type="ColorRect" parent="UI/HUD/Crosshair"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 2.0
+offset_right = 17.0
+offset_bottom = 12.0
+color = Color(1, 1, 1, 0.8)
+
+[node name="Bottom" type="ColorRect" parent="UI/HUD/Crosshair"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 20.0
+offset_right = 17.0
+offset_bottom = 30.0
+color = Color(1, 1, 1, 0.8)
+
+[node name="Left" type="ColorRect" parent="UI/HUD/Crosshair"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 15.0
+offset_right = 12.0
+offset_bottom = 17.0
+color = Color(1, 1, 1, 0.8)
+
+[node name="Right" type="ColorRect" parent="UI/HUD/Crosshair"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 30.0
+offset_bottom = 17.0
 color = Color(1, 1, 1, 0.8)
 
 [node name="EndScreen" type="Panel" parent="UI/HUD"]
@@ -271,24 +270,3 @@ custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 text = "Return to Lobby"
 
-[node name="ControlsLabel" type="Label" parent="UI/HUD"]
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -260.0
-offset_top = -165.0
-grow_horizontal = 0
-grow_vertical = 0
-text = "WASD  Move  |  L Stick
-Mouse  Look/Aim  |  R Stick
-LMB  Shoot  |  RT
-K  Melee  |  X
-RMB  Ability  |  LT
-E  Super  |  LB
-Shift  Sprint  |  RB
-F  Revive  |  Y
-ESC  Release Mouse"
-horizontal_alignment = 2

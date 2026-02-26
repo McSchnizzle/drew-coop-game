@@ -3,7 +3,7 @@
 ## Runs on server only as child of AbilityManager.
 extends Node
 
-const HEALING_AMOUNT: int = 50
+const HEALING_AMOUNT: int = 3
 
 
 func activate(player: CharacterBody3D) -> void:
@@ -33,7 +33,7 @@ func activate(player: CharacterBody3D) -> void:
 			print("HealingPulse: Revived player %d" % p.player_id)
 			continue
 		# Heal standing players
-		p.health = mini(p.health + HEALING_AMOUNT, 100)
+		p.health = mini(p.health + HEALING_AMOUNT, 3)
 		# Remove negative statuses
 		p.remove_status("context_rot")
 		p.remove_status("slow")

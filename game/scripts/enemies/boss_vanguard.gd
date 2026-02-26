@@ -8,7 +8,7 @@ const PROJECTILE_SCENE: PackedScene = preload("res://scenes/projectile_enemy.tsc
 # -- Base Stats ---
 const BOSS_HP: int = 120
 const BOSS_SPEED: float = 1.5  # Slow heavy mech
-const BOSS_CONTACT_DMG: int = 25
+const BOSS_CONTACT_DMG: int = 2
 const BOSS_CONTACT_RANGE: float = 5.0
 const BOSS_COLOR: Color = Color(0.6, 0.2, 0.2)
 
@@ -16,7 +16,7 @@ const BOSS_COLOR: Color = Color(0.6, 0.2, 0.2)
 const POUND_CYCLE: Array[float] = [5.0, 4.0, 3.0]
 const POUND_WINDUP: float = 1.0  # Freeze before slam
 const POUND_RADIUS: Array[float] = [8.0, 10.0, 12.0]
-const POUND_DAMAGE: Array[int] = [15, 20, 25]
+const POUND_DAMAGE: Array[int] = [1, 2, 2]
 
 # -- Charge Attack (Phase 2+) ---
 const CHARGE_SPEED: float = 18.0
@@ -27,7 +27,7 @@ const CHARGE_COOLDOWN: Array[float] = [999.0, 8.0, 5.0]
 const MISSILE_COOLDOWN: Array[float] = [999.0, 6.0, 4.0]
 const MISSILE_COUNT: Array[int] = [0, 4, 6]
 const MISSILE_SPEED: float = 7.0
-const MISSILE_DAMAGE: int = 10
+const MISSILE_DAMAGE: int = 1
 
 # -- Phase Thresholds ---
 const PHASE_2_THRESHOLD: float = 0.6

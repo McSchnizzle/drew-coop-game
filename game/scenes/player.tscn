@@ -50,9 +50,18 @@ properties/7/replication_mode = 1
 properties/8/path = NodePath(".:super_charge")
 properties/8/spawn = true
 properties/8/replication_mode = 1
-properties/9/path = NodePath(".:rotation:y")
+properties/9/path = NodePath(".:_synced_yaw")
 properties/9/spawn = true
 properties/9/replication_mode = 1
+properties/10/path = NodePath(".:_is_alive")
+properties/10/spawn = true
+properties/10/replication_mode = 1
+properties/11/path = NodePath(".:ammo_in_mag")
+properties/11/spawn = true
+properties/11/replication_mode = 1
+properties/12/path = NodePath(".:reserve_ammo")
+properties/12/spawn = true
+properties/12/replication_mode = 1
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_input"]
 properties/0/path = NodePath(".:input_move_dir")
@@ -88,6 +97,15 @@ properties/9/replication_mode = 1
 properties/10/path = NodePath(".:input_crouch")
 properties/10/spawn = true
 properties/10/replication_mode = 1
+properties/11/path = NodePath(".:input_aim")
+properties/11/spawn = true
+properties/11/replication_mode = 1
+properties/12/path = NodePath(".:_input_yaw")
+properties/12/spawn = true
+properties/12/replication_mode = 1
+properties/13/path = NodePath(".:input_reload")
+properties/13/spawn = true
+properties/13/replication_mode = 1
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")

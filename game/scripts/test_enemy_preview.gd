@@ -4,7 +4,7 @@ extends Node3D
 const ENEMIES := {
 	"Merge Conflict": "res://assets/models/ybot/ybot.fbx",
 	"Hallucination": "res://assets/models/ely/ely.fbx",
-	"Context Rot": "res://assets/models/context_rot.glb",
+	"Context Rot": "res://assets/models/context_rot_drone.glb",
 	"Deadlock": "res://assets/models/deadlock.fbx",
 	"Kernel Panic": "res://assets/models/kernel_panic_new.fbx",
 }
@@ -12,7 +12,9 @@ const ENEMIES := {
 const UNIFORM_HEIGHT := 2.5  # All models scaled to same height for easy comparison
 
 var _models: Array[Node3D] = []
-var _propeller_node: Node3D = null
+var _context_rot_anim: AnimationPlayer = null
+var _anim_cycle_timer: float = 0.0
+var _playing_shoot: bool = false
 
 
 func _ready() -> void:
@@ -97,9 +99,17 @@ func _ready() -> void:
 			model.add_child(helmet)
 			print("  -> Helmet at model-local Y=%.2f, world Y=%.2f" % [helmet.position.y, helmet.position.y * ms])
 
-		# Add spinning propeller blades to Context Rot drone
+		# Context Rot: find AnimationPlayer and start playing animations
 		if enemy_name == "Context Rot":
-			_propeller_node = _create_propeller_blades(model)
+			var anim_player := _find_anim_player(model)
+			if anim_player:
+				_context_rot_anim = anim_player
+				# Ensure looping on Run/Idle
+				for anim_name in anim_player.get_animation_list():
+					if "Run" in anim_name or "Idle" in anim_name or "Walk" in anim_name:
+						anim_player.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
+				_play_named_anim(_context_rot_anim, "Run")
+				print("  -> AnimationPlayer found, playing Run. Anims: %s" % str(anim_player.get_animation_list()))
 
 		root.position.x = start_x + i * spacing
 		add_child(root)
@@ -133,9 +143,50 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	for model in _models:
 		model.rotation.y += delta * 0.4
-	# Spin top rotor
-	if _propeller_node:
-		_propeller_node.rotation.y += delta * 30.0
+
+	# Context Rot animation cycle: Run for 3s → Shoot → back to Run
+	if _context_rot_anim:
+		_anim_cycle_timer += delta
+		if _playing_shoot:
+			# Wait for Shoot to finish, then go back to Run
+			if not _context_rot_anim.is_playing():
+				_playing_shoot = false
+				_anim_cycle_timer = 0.0
+				_play_named_anim(_context_rot_anim, "Run")
+		else:
+			# After 3 seconds of Run, play Shoot
+			if _anim_cycle_timer > 3.0:
+				_playing_shoot = true
+				_anim_cycle_timer = 0.0
+				_context_rot_anim.stop()
+				_play_named_anim(_context_rot_anim, "Shoot")
+
+
+func _find_anim_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for child in node.get_children():
+		var found := _find_anim_player(child)
+		if found:
+			return found
+	return null
+
+
+func _play_named_anim(anim_player: AnimationPlayer, anim_name: String) -> void:
+	for a_name in anim_player.get_animation_list():
+		if anim_name.to_lower() in a_name.to_lower():
+			anim_player.play(a_name)
+			return
+
+
+func _find_node_by_name(node: Node, target_name: String) -> Node3D:
+	if node.name == target_name and node is Node3D:
+		return node as Node3D
+	for child in node.get_children():
+		var found := _find_node_by_name(child, target_name)
+		if found:
+			return found
+	return null
 
 
 func _get_bounds(node: Node) -> AABB:
@@ -159,99 +210,6 @@ func _collect_mesh_points(node: Node, parent_xform: Transform3D, points: PackedV
 			points.append(xform * aabb.get_endpoint(i))
 	for child in node.get_children():
 		_collect_mesh_points(child, xform, points)
-
-
-func _create_propeller_blades(drone_model: Node3D) -> Node3D:
-	# Get the actual visual top of the drone model in the parent (root) space
-	var bounds := _get_bounds(drone_model)
-	var visual_top_world := bounds.position.y + bounds.size.y
-
-	# Undo model scale so propeller components stay at world-space sizes
-	var ms: float = drone_model.scale.x
-	var inv_s := 1.0 / ms
-
-	# Convert world-space top to model-local coordinates
-	var top_local := (visual_top_world - drone_model.position.y) / ms
-
-	# World-space shaft dimensions
-	var shaft_height := 0.20
-
-	# Shaft connecting body to rotor (doesn't spin, parented to model)
-	var shaft := MeshInstance3D.new()
-	var shaft_mesh := CylinderMesh.new()
-	shaft_mesh.top_radius = 0.02
-	shaft_mesh.bottom_radius = 0.035
-	shaft_mesh.height = shaft_height
-	shaft.mesh = shaft_mesh
-	var shaft_mat := StandardMaterial3D.new()
-	shaft_mat.albedo_color = Color(0.25, 0.25, 0.25)
-	shaft_mat.metallic = 0.7
-	shaft.material_override = shaft_mat
-	shaft.scale = Vector3(inv_s, inv_s, inv_s)
-	shaft.position = Vector3(0, top_local + (shaft_height / 2.0) * inv_s, 0)
-	drone_model.add_child(shaft)
-
-	# Top-mounted rotor (spins)
-	var prop_root := Node3D.new()
-	prop_root.name = "TopRotor"
-	prop_root.position = Vector3(0, top_local + shaft_height * inv_s, 0)
-	prop_root.scale = Vector3(inv_s, inv_s, inv_s)
-	drone_model.add_child(prop_root)
-
-	var blade_mat := StandardMaterial3D.new()
-	blade_mat.albedo_color = Color(0.7, 0.7, 0.7, 0.85)
-	blade_mat.metallic = 0.6
-	blade_mat.roughness = 0.3
-	blade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	blade_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-	var hub := MeshInstance3D.new()
-	var hub_mesh := CylinderMesh.new()
-	hub_mesh.top_radius = 0.03
-	hub_mesh.bottom_radius = 0.04
-	hub_mesh.height = 0.06
-	hub.mesh = hub_mesh
-	var hub_mat := StandardMaterial3D.new()
-	hub_mat.albedo_color = Color(0.3, 0.3, 0.3)
-	hub_mat.metallic = 0.7
-	hub.material_override = hub_mat
-	prop_root.add_child(hub)
-
-	var blade_mesh := _make_tilted_blade_mesh(0.45, 0.08, 0.06)
-	for i in 3:
-		var blade := MeshInstance3D.new()
-		blade.mesh = blade_mesh
-		blade.material_override = blade_mat
-		blade.rotation_degrees.y = i * 120.0
-		prop_root.add_child(blade)
-
-	return prop_root
-
-
-func _make_tilted_blade_mesh(length: float, width: float, rise: float) -> ArrayMesh:
-	var half_l := length / 2.0
-	var half_w := width / 2.0
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var v0 := Vector3(-half_l, 0, -half_w)
-	var v1 := Vector3(-half_l, 0, half_w)
-	var v2 := Vector3(half_l, rise, half_w)
-	var v3 := Vector3(half_l, rise, -half_w)
-	st.set_normal(Vector3(0, 1, 0))
-	st.add_vertex(v0)
-	st.add_vertex(v1)
-	st.add_vertex(v2)
-	st.add_vertex(v0)
-	st.add_vertex(v2)
-	st.add_vertex(v3)
-	st.set_normal(Vector3(0, -1, 0))
-	st.add_vertex(v2)
-	st.add_vertex(v1)
-	st.add_vertex(v0)
-	st.add_vertex(v3)
-	st.add_vertex(v2)
-	st.add_vertex(v0)
-	return st.commit()
 
 
 # ── Robot helmet (same as enemy_hallucination.gd) ────────────────────────────

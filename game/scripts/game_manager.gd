@@ -291,7 +291,7 @@ func _apply_snapshot_to_player(player_node: CharacterBody3D, display_name: Strin
 	var pdata: Dictionary = snapshot["players"].get(display_name, {})
 	if pdata.is_empty():
 		return
-	player_node.health = pdata.get("health", 100)
+	player_node.health = pdata.get("health", 3)
 	player_node.super_charge = pdata.get("super_charge", 0.0)
 	if pdata.get("is_downed", false):
 		player_node._is_downed = true

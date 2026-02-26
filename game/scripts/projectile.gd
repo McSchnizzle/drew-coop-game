@@ -17,6 +17,9 @@ func _ready() -> void:
 	# Detect enemies on layer 3 (bit 4).
 	collision_mask = 4
 	body_entered.connect(_on_body_entered)
+	# Orient bolt to face travel direction
+	if direction.length_squared() > 0.001:
+		look_at(global_position + direction, Vector3.UP)
 
 
 func _physics_process(delta: float) -> void:

@@ -73,3 +73,6 @@ signal boss_died(boss_id: int, killed_by: int)
 signal hallucination_revealed(enemy_id: int, position: Vector3)
 signal dependency_aura_entered(player_id: int, enemy_id: int)
 signal dependency_aura_exited(player_id: int, enemy_id: int)
+
+# ── Kill Feed Events ─────────────────────────────────────────────────────
+signal kill_feed_entry(killer_name: String, enemy_type: String)

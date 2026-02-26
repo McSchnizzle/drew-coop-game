@@ -4,7 +4,7 @@ extends Area3D
 
 var direction: Vector3 = Vector3.RIGHT
 var speed: float = 10.0
-var damage: int = 8
+var damage: int = 1
 var owner_id: int = 0
 var is_enemy_projectile: bool = true
 var status_effect: String = ""

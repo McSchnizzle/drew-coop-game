@@ -7,13 +7,14 @@ enum State { IDLE, CHASE, ATTACK, FLEE, STUNNED, DEAD }
 var enemy_id: int = 0
 var health: int = 3
 var speed: float = 2.5
-var contact_damage: int = 10
+var contact_damage: int = 1
 var _is_alive: bool = true
 var _current_state: State = State.IDLE
 var _stun_timer: float = 0.0
 var _status_effects: Dictionary = {}  # { effect_name: remaining_duration }
 var _model_node: Node3D = null  # The visual model root (GLB instance or placeholder)
 var _anim_player: AnimationPlayer = null
+var _last_synced_state: State = State.IDLE  # Client-side: track state changes for animation
 
 const CONTACT_DAMAGE_COOLDOWN: float = 1.0
 const CONTACT_RANGE: float = 2.5  # 50px / 20
@@ -65,6 +66,9 @@ func _load_glb_model(glb_path: String, target_height: float = 0.0) -> void:
 		target_height = _get_collision_height()
 	if target_height > 0.0:
 		_fit_model_to_height(target_height)
+	# Make materials unique per instance — GLB imports share sub-resources,
+	# so modifying one enemy's material (e.g. hit flash) would affect ALL enemies.
+	_make_materials_unique(_model_node)
 	# Find AnimationPlayer for walk/idle animations
 	_anim_player = _find_anim_player(_model_node)
 	if _anim_player:
@@ -152,6 +156,16 @@ func _find_anim_player(node: Node) -> AnimationPlayer:
 	return null
 
 
+func _make_materials_unique(node: Node) -> void:
+	if node is MeshInstance3D and node.mesh:
+		for surf_idx in node.mesh.get_surface_count():
+			var mat = node.mesh.surface_get_material(surf_idx)
+			if mat:
+				node.set_surface_override_material(surf_idx, mat.duplicate())
+	for child in node.get_children():
+		_make_materials_unique(child)
+
+
 func _tint_model(color: Color, emission: float = 0.3) -> void:
 	if not _model_node:
 		return
@@ -179,7 +193,7 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 	if not _anim_player:
 		_anim_player = AnimationPlayer.new()
 		_model_node.add_child(_anim_player)
-		_anim_player.root_node = _anim_player.get_path_to(_model_node)
+	_anim_player.root_node = _anim_player.get_path_to(_model_node)
 
 	# Always create a FRESH library per instance. Godot shares sub-resources
 	# across instances of the same imported scene, so modifying the existing
@@ -188,6 +202,17 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 	if _anim_player.has_animation_library(""):
 		_anim_player.remove_animation_library("")
 	_anim_player.add_animation_library("", lib)
+
+	# Build bone name remap from source (ybot) → target model skeleton
+	var target_skel := _find_skeleton(_model_node)
+	var skel_path_str := ""
+	var bone_remap := {}
+	if target_skel:
+		skel_path_str = str(_model_node.get_path_to(target_skel))
+		for i in target_skel.get_bone_count():
+			var bname := target_skel.get_bone_name(i)
+			var base := _strip_mixamo_prefix(bname)
+			bone_remap[base] = bname
 
 	for anim_name in anim_map:
 		var fbx_path: String = anim_map[anim_name]
@@ -213,12 +238,43 @@ func _load_external_animations(anim_map: Dictionary) -> void:
 		if source_anim:
 			var anim_copy := source_anim.duplicate()
 			_strip_root_motion(anim_copy)
+			_remap_anim_tracks(anim_copy, skel_path_str, bone_remap)
 			if anim_name in ["Idle", "Walk", "Run"]:
 				anim_copy.loop_mode = Animation.LOOP_LINEAR
 			lib.add_animation(anim_name, anim_copy)
 		temp.free()
 	# Start in idle pose now that real animations are available
 	_play_anim("Idle")
+
+
+func _find_skeleton(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node
+	for child in node.get_children():
+		var found := _find_skeleton(child)
+		if found:
+			return found
+	return null
+
+
+func _strip_mixamo_prefix(bone_name: String) -> String:
+	for prefix in ["mixamorig:", "mixamorig_", "mixamorig1_", "mixamorig2_", "mixamorig3_"]:
+		if bone_name.begins_with(prefix):
+			return bone_name.substr(prefix.length())
+	return bone_name
+
+
+func _remap_anim_tracks(anim: Animation, skel_path: String, bone_remap_dict: Dictionary) -> void:
+	if skel_path.is_empty() or bone_remap_dict.is_empty():
+		return
+	for track_idx in anim.get_track_count():
+		var old_path := anim.track_get_path(track_idx)
+		var subname := old_path.get_concatenated_subnames()
+		if subname.is_empty():
+			continue
+		var base_bone := _strip_mixamo_prefix(subname)
+		var new_bone: String = bone_remap_dict.get(base_bone, subname)
+		anim.track_set_path(track_idx, NodePath(skel_path + ":" + new_bone))
 
 
 func _strip_root_motion(anim: Animation) -> void:
@@ -281,6 +337,8 @@ func _physics_process(delta: float) -> void:
 	if not _is_alive:
 		return
 	if not multiplayer.is_server():
+		# Client: sync animation to replicated _current_state
+		_update_client_animation()
 		return
 
 	# Gravity — ensures split children and spawned enemies settle on the floor
@@ -393,6 +451,25 @@ func _state_stunned(delta: float) -> void:
 		_transition_to(State.CHASE)
 
 
+func _update_client_animation() -> void:
+	## Client-side: play animation matching the synced _current_state.
+	if _current_state != _last_synced_state:
+		_last_synced_state = _current_state
+		match _current_state:
+			State.IDLE:
+				_play_anim("Idle")
+			State.CHASE:
+				_play_anim("Walk")
+			State.ATTACK:
+				_play_anim("Attack")
+			State.FLEE:
+				_play_anim("Walk")
+			State.STUNNED:
+				_play_anim("Idle")
+			State.DEAD:
+				_play_anim("Death")
+
+
 func _transition_to(new_state: State) -> void:
 	_current_state = new_state
 	# Play matching animation
@@ -414,7 +491,8 @@ func _transition_to(new_state: State) -> void:
 func take_damage(amount: int, from_player_id: int) -> void:
 	if not _is_alive or not multiplayer.is_server():
 		return
-	if has_status("exposed"):
+	var is_crit := has_status("exposed")
+	if is_crit:
 		amount *= 2
 	health -= amount
 	_show_hit_flash.rpc()
@@ -423,7 +501,7 @@ func take_damage(amount: int, from_player_id: int) -> void:
 		_die(from_player_id)
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("authority", "call_local", "unreliable")
 func _show_hit_flash() -> void:
 	if not is_inside_tree():
 		return
@@ -446,6 +524,7 @@ func _show_hit_flash() -> void:
 			mat.emission_enabled = original_emission_enabled
 			mat.emission = original_emission
 	)
+
 
 
 @rpc("authority", "call_local", "reliable")

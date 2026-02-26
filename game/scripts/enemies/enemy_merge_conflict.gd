@@ -9,7 +9,7 @@ var SELF_SCENE: PackedScene  # Loaded on first split to avoid circular preload
 const TIER_HP: Array[int] = [3, 2, 1]
 const TIER_SPEED: Array[float] = [2.5, 3.25, 4.0]
 const TIER_SCALE: Array[float] = [1.0, 0.67, 0.42]
-const TIER_CONTACT_DMG: Array[int] = [10, 8, 5]
+const TIER_CONTACT_DMG: Array[int] = [1, 1, 1]
 const TIER_COLORS: Array[Color] = [
 	Color(0.9, 0.15, 0.15),  # Red (T0)
 	Color(0.9, 0.4, 0.4),    # Light Red (T1)
@@ -31,7 +31,6 @@ func _ready() -> void:
 		"HitReaction": "res://assets/models/ybot/hit_reaction.fbx",
 		"Attack": "res://assets/models/ybot/attack.fbx",
 	})
-	_tint_model(Color(0.9, 0.3, 0.3))  # Red tint
 	_apply_tier_stats()
 	if multiplayer.is_server() and Events.has_signal("enemy_died"):
 		Events.enemy_died.connect(_on_any_enemy_died)
@@ -81,9 +80,6 @@ func _apply_tier_stats() -> void:
 		var s: float = TIER_SCALE[size_tier]
 		_model_node.scale = base_scale * s
 
-	# Tint per tier
-	_tint_model(TIER_COLORS[size_tier])
-
 	# Update collision shapes
 	var body_shape = get_node_or_null("CollisionShape3D")
 	if body_shape and body_shape.shape is BoxShape3D:
@@ -109,7 +105,7 @@ func _die(killed_by: int) -> void:
 	var was_clean := has_status("exposed")
 	Events.enemy_died.emit(enemy_id, killed_by, was_clean)
 
-	if not was_clean and size_tier < 2:
+	if not was_clean and size_tier < 1:
 		# Delay spawning kids so the death animation plays partway first
 		var death_time := 1.5
 		if _anim_player and _anim_player.has_animation("Death"):

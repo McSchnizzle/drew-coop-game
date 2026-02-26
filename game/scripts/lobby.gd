@@ -101,19 +101,34 @@ var _card_normal_style: StyleBoxFlat
 var _card_selected_striker_style: StyleBoxFlat
 var _card_selected_engineer_style: StyleBoxFlat
 
-# Tab bar
-var _role_tab_btn: Button
-var _enemies_tab_btn: Button
-var _lobby_tab_btn: Button
-var _tab_active_style: StyleBoxFlat
-var _tab_inactive_style: StyleBoxFlat
+# Vertical menu (left side, COD-style)
+var _title_label: Label
+var _menu_container: VBoxContainer
+var _menu_items: Array[Label] = []
+var _menu_accent_bars: Array[ColorRect] = []
+var _menu_index: int = 0
+const _MENU_LABELS: Array[String] = ["CHOOSE ROLE", "ENEMIES"]
 var _current_tab: String = "role"
-const _TAB_ORDER: Array[String] = ["role", "enemies", "lobby"]
+const _TAB_ORDER: Array[String] = ["role", "enemies"]
+
+# 3D viewport (hidden during pregame, shown in lobby)
+var _stage_viewport_container: SubViewportContainer
+
+# Back-to-pregame hint (shown only in lobby state)
+var _back_hint: Label
 
 # Enemies bestiary panel
 var _enemies_panel: Control
 
 var _glass_shader: Shader
+
+# Title splash screen
+var _splash: Control
+var _splash_prompt: Label
+var _splash_tween: Tween
+
+# Navigation hints (shown next to menu)
+var _nav_hints: Label
 
 # On-screen keyboard for controller name entry
 var _onscreen_kb: Control
@@ -146,7 +161,8 @@ func _ready() -> void:
 	Events.connection_lost.connect(_on_connection_lost)
 
 	# Grab the 3D lobby stage from the SubViewport
-	var viewport := get_node("StageViewportContainer/SubViewport")
+	_stage_viewport_container = get_node("StageViewportContainer") as SubViewportContainer
+	var viewport := _stage_viewport_container.get_node("SubViewport")
 	_lobby_stage_3d = viewport.get_node("LobbyStage3D")
 
 	# Load blur shader for character select overlay, then style everything
@@ -154,6 +170,7 @@ func _ready() -> void:
 	_setup_theme()
 	_build_character_select()
 	_build_enemies_panel()
+	_build_title_splash()
 	_build_onscreen_keyboard()
 
 	if NetworkManager.is_returning_to_lobby:
@@ -168,6 +185,41 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Title splash: any press dismisses it
+	if _splash and _splash.visible:
+		var is_press := false
+		if event is InputEventKey and event.pressed:
+			is_press = true
+		elif event is InputEventJoypadButton and event.pressed:
+			is_press = true
+		elif event is InputEventMouseButton and event.pressed:
+			is_press = true
+		if is_press:
+			_dismiss_splash()
+			get_viewport().set_input_as_handled()
+			return
+
+	# Keyboard input
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ESCAPE:
+			if _current_tab == "lobby":
+				SoundManager.play_ui_click()
+				_switch_to_role_tab()
+				get_viewport().set_input_as_handled()
+				return
+		# Up/Down arrow keys for pregame menu navigation
+		if _current_tab != "lobby":
+			if event.keycode == KEY_UP:
+				SoundManager.play_ui_click()
+				_prev_menu_item()
+				get_viewport().set_input_as_handled()
+				return
+			elif event.keycode == KEY_DOWN:
+				SoundManager.play_ui_click()
+				_next_menu_item()
+				get_viewport().set_input_as_handled()
+				return
+
 	if not (event is InputEventJoypadButton and event.pressed):
 		return
 
@@ -189,11 +241,27 @@ func _input(event: InputEvent) -> void:
 		return
 
 	# Normal lobby input.
-	if event.button_index == JOY_BUTTON_RIGHT_SHOULDER:
-		_next_tab()
-	elif event.button_index == JOY_BUTTON_LEFT_SHOULDER:
-		_prev_tab()
-	elif event.button_index == JOY_BUTTON_A:
+	if event.button_index == JOY_BUTTON_B:
+		if _current_tab == "lobby":
+			SoundManager.play_ui_click()
+			_switch_to_role_tab()
+			get_viewport().set_input_as_handled()
+			return
+
+	# D-pad and shoulder buttons for menu navigation (pregame only)
+	if _current_tab != "lobby":
+		if event.button_index == JOY_BUTTON_DPAD_DOWN or event.button_index == JOY_BUTTON_RIGHT_SHOULDER:
+			SoundManager.play_ui_click()
+			_next_menu_item()
+			get_viewport().set_input_as_handled()
+			return
+		elif event.button_index == JOY_BUTTON_DPAD_UP or event.button_index == JOY_BUTTON_LEFT_SHOULDER:
+			SoundManager.play_ui_click()
+			_prev_menu_item()
+			get_viewport().set_input_as_handled()
+			return
+
+	if event.button_index == JOY_BUTTON_A:
 		_handle_gamepad_accept()
 		if is_inside_tree():
 			get_viewport().set_input_as_handled()
@@ -224,9 +292,9 @@ func _handle_gamepad_accept() -> void:
 func _grab_tab_default_focus() -> void:
 	match _current_tab:
 		"role":
-			if _striker_select_btn and _striker_select_btn.is_visible_in_tree() and not _striker_select_btn.disabled:
+			if _striker_select_btn and _striker_select_btn.is_visible_in_tree():
 				_striker_select_btn.grab_focus()
-			elif _engineer_select_btn and _engineer_select_btn.is_visible_in_tree() and not _engineer_select_btn.disabled:
+			elif _engineer_select_btn and _engineer_select_btn.is_visible_in_tree():
 				_engineer_select_btn.grab_focus()
 		"lobby":
 			if start_button.visible and start_button.is_visible_in_tree():
@@ -235,16 +303,16 @@ func _grab_tab_default_focus() -> void:
 				host_button.grab_focus()
 
 
-func _next_tab() -> void:
-	var idx := _TAB_ORDER.find(_current_tab)
-	idx = (idx + 1) % _TAB_ORDER.size()
-	_switch_to_tab(_TAB_ORDER[idx])
+func _next_menu_item() -> void:
+	_menu_index = (_menu_index + 1) % _MENU_LABELS.size()
+	_update_menu_highlight()
+	_switch_to_tab(_TAB_ORDER[_menu_index])
 
 
-func _prev_tab() -> void:
-	var idx := _TAB_ORDER.find(_current_tab)
-	idx = (idx - 1 + _TAB_ORDER.size()) % _TAB_ORDER.size()
-	_switch_to_tab(_TAB_ORDER[idx])
+func _prev_menu_item() -> void:
+	_menu_index = (_menu_index - 1 + _MENU_LABELS.size()) % _MENU_LABELS.size()
+	_update_menu_highlight()
+	_switch_to_tab(_TAB_ORDER[_menu_index])
 
 
 func _switch_to_tab(tab: String) -> void:
@@ -260,7 +328,8 @@ func _setup_fresh_lobby() -> void:
 	leave_button.visible = false
 	status_label.text = "Ready to host or join."
 	role_label.text = "Role: None"
-	_switch_to_role_tab()
+	# Show splash screen instead of going directly to menu
+	_show_splash()
 
 
 func _setup_returning_lobby() -> void:
@@ -306,11 +375,20 @@ func _setup_returning_lobby() -> void:
 # ── Theme Setup ───────────────────────────────────────────────────────────────
 
 func _setup_theme() -> void:
-	# ── Title label ──
-	var title_label := get_node_or_null("TitleLabel")
-	if title_label:
-		title_label.add_theme_color_override("font_color", TEXT_PRIMARY)
-		title_label.add_theme_font_size_override("font_size", 30)
+	# ── Title label (top-left, COD-style) ──
+	_title_label = get_node_or_null("TitleLabel") as Label
+	if _title_label:
+		_title_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+		_title_label.add_theme_font_size_override("font_size", 36)
+		_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_title_label.anchor_left = 0
+		_title_label.anchor_top = 0
+		_title_label.anchor_right = 0
+		_title_label.anchor_bottom = 0
+		_title_label.offset_left = 60
+		_title_label.offset_top = 40
+		_title_label.offset_right = 500
+		_title_label.offset_bottom = 90
 
 	# ── Action buttons (Host, Join, Copy): frosted glass ──
 	var act_n := _make_stylebox(
@@ -473,6 +551,7 @@ func _rebuild_player_stage() -> void:
 # ── Role Selection ────────────────────────────────────────────────────────────
 
 func _on_striker_pressed() -> void:
+	SoundManager.play_ui_click()
 	_selected_role = "striker"
 	role_label.text = "Role: Striker"
 	role_description.text = ROLE_DESCRIPTIONS["striker"]
@@ -484,6 +563,7 @@ func _on_striker_pressed() -> void:
 
 
 func _on_engineer_pressed() -> void:
+	SoundManager.play_ui_click()
 	_selected_role = "engineer"
 	role_label.text = "Role: Engineer"
 	role_description.text = ROLE_DESCRIPTIONS["engineer"]
@@ -520,13 +600,25 @@ func _switch_to_role_tab() -> void:
 	if not _char_select:
 		return
 	_current_tab = "role"
+	_menu_index = 0
 	_char_select.visible = true
 	if _enemies_panel:
 		_enemies_panel.visible = false
 	var hud := get_node_or_null("BottomHUD")
 	if hud:
 		hud.visible = false
-	_update_tab_styles("role")
+	# Hide 3D viewport in pregame, show menu
+	if _stage_viewport_container:
+		_stage_viewport_container.visible = false
+	if _menu_container:
+		_menu_container.visible = true
+	if _title_label:
+		_title_label.visible = true
+	if _back_hint:
+		_back_hint.visible = false
+	if _nav_hints:
+		_nav_hints.visible = true
+	_update_menu_highlight()
 	_update_character_select_cards()
 	if _lobby_stage_3d:
 		_lobby_stage_3d.set_host_label_visible(false)
@@ -544,7 +636,17 @@ func _switch_to_lobby_tab() -> void:
 	var hud := get_node_or_null("BottomHUD")
 	if hud:
 		hud.visible = true
-	_update_tab_styles("lobby")
+	# Show 3D viewport, hide pregame menu
+	if _stage_viewport_container:
+		_stage_viewport_container.visible = true
+	if _menu_container:
+		_menu_container.visible = false
+	if _title_label:
+		_title_label.visible = false
+	if _back_hint:
+		_back_hint.visible = true
+	if _nav_hints:
+		_nav_hints.visible = false
 	if _lobby_stage_3d:
 		_lobby_stage_3d.set_host_label_visible(true)
 
@@ -562,6 +664,7 @@ func _switch_to_enemies_tab() -> void:
 	if not _enemies_panel:
 		return
 	_current_tab = "enemies"
+	_menu_index = 1
 	_enemies_panel.visible = true
 	_refresh_enemies_panel()
 	if _char_select:
@@ -569,7 +672,18 @@ func _switch_to_enemies_tab() -> void:
 	var hud := get_node_or_null("BottomHUD")
 	if hud:
 		hud.visible = false
-	_update_tab_styles("enemies")
+	# Hide 3D viewport in pregame, show menu
+	if _stage_viewport_container:
+		_stage_viewport_container.visible = false
+	if _menu_container:
+		_menu_container.visible = true
+	if _title_label:
+		_title_label.visible = true
+	if _back_hint:
+		_back_hint.visible = false
+	if _nav_hints:
+		_nav_hints.visible = true
+	_update_menu_highlight()
 	if _lobby_stage_3d:
 		_lobby_stage_3d.set_host_label_visible(false)
 
@@ -605,27 +719,20 @@ func _setup_lobby_focus() -> void:
 		first_right.focus_neighbor_left = first_right.get_path_to(name_input)
 
 
-func _update_tab_styles(active: String) -> void:
-	if not _role_tab_btn:
-		return
-	var tabs := {
-		"role": _role_tab_btn,
-		"enemies": _enemies_tab_btn,
-		"lobby": _lobby_tab_btn,
-	}
-	for key in tabs:
-		var btn: Button = tabs[key]
-		if not btn:
-			continue
-		if key == active:
-			btn.add_theme_stylebox_override("normal", _tab_active_style)
-			btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+func _update_menu_highlight() -> void:
+	for i in range(_menu_items.size()):
+		if i == _menu_index:
+			_menu_items[i].add_theme_font_size_override("font_size", 28)
+			_menu_items[i].add_theme_color_override("font_color", Color.WHITE)
+			_menu_accent_bars[i].visible = true
 		else:
-			btn.add_theme_stylebox_override("normal", _tab_inactive_style)
-			btn.add_theme_color_override("font_color", TEXT_SECONDARY)
+			_menu_items[i].add_theme_font_size_override("font_size", 22)
+			_menu_items[i].add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+			_menu_accent_bars[i].visible = false
 
 
 func _on_select_striker() -> void:
+	SoundManager.play_ui_click()
 	_selected_role = "striker"
 	role_label.text = "Role: Striker"
 	_update_role_buttons()
@@ -638,6 +745,7 @@ func _on_select_striker() -> void:
 
 
 func _on_select_engineer() -> void:
+	SoundManager.play_ui_click()
 	_selected_role = "engineer"
 	role_label.text = "Role: Engineer"
 	_update_role_buttons()
@@ -656,51 +764,36 @@ func _update_character_select_cards() -> void:
 	if _selected_role == "striker":
 		_striker_card.add_theme_stylebox_override("panel", _card_selected_striker_style)
 		_engineer_card.add_theme_stylebox_override("panel", _card_normal_style)
-		_striker_select_btn.text = "Selected"
-		_striker_select_btn.disabled = true
+		_striker_select_btn.text = "Selected — Play"
+		_striker_select_btn.disabled = false
+		_style_button_accent(_striker_select_btn, Color(1.0, 0.65, 0.25))
 		_engineer_select_btn.text = "Select Engineer"
 		_engineer_select_btn.disabled = false
+		_style_button_accent(_engineer_select_btn, Color(0.231, 0.769, 0.290))
 		_current_role_label.text = "Currently selected: Striker"
 	elif _selected_role == "engineer":
 		_striker_card.add_theme_stylebox_override("panel", _card_normal_style)
 		_engineer_card.add_theme_stylebox_override("panel", _card_selected_engineer_style)
 		_striker_select_btn.text = "Select Striker"
 		_striker_select_btn.disabled = false
-		_engineer_select_btn.text = "Selected"
-		_engineer_select_btn.disabled = true
+		_style_button_accent(_striker_select_btn, Color(0.910, 0.530, 0.169))
+		_engineer_select_btn.text = "Selected — Play"
+		_engineer_select_btn.disabled = false
+		_style_button_accent(_engineer_select_btn, Color(0.35, 0.95, 0.40))
 		_current_role_label.text = "Currently selected: Engineer"
 	else:
 		_striker_card.add_theme_stylebox_override("panel", _card_normal_style)
 		_engineer_card.add_theme_stylebox_override("panel", _card_normal_style)
 		_striker_select_btn.text = "Select Striker"
 		_striker_select_btn.disabled = false
+		_style_button_accent(_striker_select_btn, Color(0.910, 0.530, 0.169))
 		_engineer_select_btn.text = "Select Engineer"
 		_engineer_select_btn.disabled = false
+		_style_button_accent(_engineer_select_btn, Color(0.231, 0.769, 0.290))
 		_current_role_label.text = "Select a role to begin"
 
 
 func _build_character_select() -> void:
-	# -- Tab bar styles: glassmorphism with subtle underline --
-	_tab_active_style = StyleBoxFlat.new()
-	_tab_active_style.bg_color = Color(1, 1, 1, 0.06)
-	_tab_active_style.border_color = Color(1, 1, 1, 0.50)
-	_tab_active_style.set_border_width_all(0)
-	_tab_active_style.border_width_bottom = 2
-	_tab_active_style.set_corner_radius_all(0)
-	_tab_active_style.content_margin_left = 22.0
-	_tab_active_style.content_margin_top = 10.0
-	_tab_active_style.content_margin_right = 22.0
-	_tab_active_style.content_margin_bottom = 10.0
-
-	_tab_inactive_style = StyleBoxFlat.new()
-	_tab_inactive_style.bg_color = Color(0, 0, 0, 0)
-	_tab_inactive_style.set_border_width_all(0)
-	_tab_inactive_style.set_corner_radius_all(0)
-	_tab_inactive_style.content_margin_left = 22.0
-	_tab_inactive_style.content_margin_top = 10.0
-	_tab_inactive_style.content_margin_right = 22.0
-	_tab_inactive_style.content_margin_bottom = 10.0
-
 	# -- Card styles: glassmorphism with subtle borders --
 	_card_normal_style = StyleBoxFlat.new()
 	_card_normal_style.bg_color = Color(0.18, 0.16, 0.28, 0.75)
@@ -726,31 +819,21 @@ func _build_character_select() -> void:
 	_card_selected_engineer_style.shadow_color = Color(0.23, 0.77, 0.29, 0.12)
 	_card_selected_engineer_style.shadow_size = 10
 
-	# -- Character select panel (below tab bar area, with blur) --
+	# -- Character select panel (right side, no blur — dark bg behind) --
 	_char_select = Control.new()
 	_char_select.name = "CharacterSelect"
 	_char_select.visible = false
 	_char_select.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_char_select.offset_top = 110
+	_char_select.offset_left = 250
+	_char_select.offset_top = 80
 	_char_select.offset_bottom = -40
 	add_child(_char_select)
 
-	# Frosted blur overlay (heavier blur + darker tint than panels)
-	var overlay_blur := ColorRect.new()
-	overlay_blur.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay_blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var overlay_mat := ShaderMaterial.new()
-	overlay_mat.shader = _glass_shader
-	overlay_mat.set_shader_parameter("tint", Color(0.04, 0.03, 0.08, 0.70))
-	overlay_mat.set_shader_parameter("blur_amount", 4.0)
-	overlay_blur.material = overlay_mat
-	_char_select.add_child(overlay_blur)
-
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 60)
+	margin.add_theme_constant_override("margin_left", 20)
 	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_right", 60)
+	margin.add_theme_constant_override("margin_right", 20)
 	margin.add_theme_constant_override("margin_bottom", 60)
 	_char_select.add_child(margin)
 
@@ -762,15 +845,15 @@ func _build_character_select() -> void:
 
 	# -- Current role label (above cards) --
 	_current_role_label = Label.new()
-	_current_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_current_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_current_role_label.add_theme_font_size_override("font_size", 16)
 	_current_role_label.add_theme_color_override("font_color", TEXT_SECONDARY)
 	main_vbox.add_child(_current_role_label)
 
 	# -- Card container --
 	var card_container := HBoxContainer.new()
-	card_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	card_container.add_theme_constant_override("separation", 60)
+	card_container.alignment = BoxContainer.ALIGNMENT_BEGIN
+	card_container.add_theme_constant_override("separation", 40)
 	main_vbox.add_child(card_container)
 
 	# -- Striker card --
@@ -809,69 +892,73 @@ func _build_character_select() -> void:
 	_striker_select_btn.focus_neighbor_right = _striker_select_btn.get_path_to(_engineer_select_btn)
 	_engineer_select_btn.focus_neighbor_left = _engineer_select_btn.get_path_to(_striker_select_btn)
 
-	# -- Tab bar (added after CharacterSelect so it draws on top) --
-	var tab_bar := HBoxContainer.new()
-	tab_bar.anchor_left = 0.5
-	tab_bar.anchor_right = 0.5
-	tab_bar.offset_top = 68
-	tab_bar.offset_left = -275
-	tab_bar.offset_right = 275
-	tab_bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	tab_bar.add_theme_constant_override("separation", 0)
-	add_child(tab_bar)
+	# -- Vertical menu (left side, COD-style) --
+	_menu_container = VBoxContainer.new()
+	_menu_container.name = "MenuContainer"
+	_menu_container.anchor_left = 0
+	_menu_container.anchor_top = 0
+	_menu_container.anchor_right = 0
+	_menu_container.anchor_bottom = 0
+	_menu_container.offset_left = 60
+	_menu_container.offset_top = 120
+	_menu_container.offset_right = 240
+	_menu_container.offset_bottom = 300
+	_menu_container.add_theme_constant_override("separation", 12)
+	add_child(_menu_container)
 
-	# LB hint (left of tabs)
-	var lb_label := Label.new()
-	lb_label.text = "LB"
-	lb_label.add_theme_font_size_override("font_size", 12)
-	lb_label.add_theme_color_override("font_color", TEXT_SECONDARY)
-	lb_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tab_bar.add_child(lb_label)
+	for i in range(_MENU_LABELS.size()):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_menu_container.add_child(row)
 
-	_role_tab_btn = Button.new()
-	_role_tab_btn.text = "Choose Role"
-	_role_tab_btn.add_theme_font_size_override("font_size", 16)
-	_role_tab_btn.pressed.connect(_switch_to_role_tab)
-	_role_tab_btn.focus_mode = Control.FOCUS_NONE
-	tab_bar.add_child(_role_tab_btn)
+		# Left accent bar
+		var accent_bar := ColorRect.new()
+		accent_bar.custom_minimum_size = Vector2(4, 28)
+		accent_bar.color = Color.WHITE
+		accent_bar.visible = (i == 0)
+		row.add_child(accent_bar)
+		_menu_accent_bars.append(accent_bar)
 
-	_enemies_tab_btn = Button.new()
-	_enemies_tab_btn.text = "Enemies"
-	_enemies_tab_btn.add_theme_font_size_override("font_size", 16)
-	_enemies_tab_btn.pressed.connect(_switch_to_enemies_tab)
-	_enemies_tab_btn.focus_mode = Control.FOCUS_NONE
-	tab_bar.add_child(_enemies_tab_btn)
+		# Menu label
+		var lbl := Label.new()
+		lbl.text = _MENU_LABELS[i]
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		if i == 0:
+			lbl.add_theme_font_size_override("font_size", 28)
+			lbl.add_theme_color_override("font_color", Color.WHITE)
+		else:
+			lbl.add_theme_font_size_override("font_size", 22)
+			lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		row.add_child(lbl)
+		_menu_items.append(lbl)
 
-	_lobby_tab_btn = Button.new()
-	_lobby_tab_btn.text = "Lobby"
-	_lobby_tab_btn.add_theme_font_size_override("font_size", 16)
-	_lobby_tab_btn.pressed.connect(_switch_to_lobby_tab)
-	_lobby_tab_btn.focus_mode = Control.FOCUS_NONE
-	tab_bar.add_child(_lobby_tab_btn)
+	# -- Navigation hints (below menu) --
+	_nav_hints = Label.new()
+	_nav_hints.name = "NavHints"
+	_nav_hints.text = "↑↓  Navigate    Enter  Select"
+	_nav_hints.anchor_left = 0
+	_nav_hints.anchor_top = 0
+	_nav_hints.anchor_right = 0
+	_nav_hints.anchor_bottom = 0
+	_nav_hints.offset_left = 60
+	_nav_hints.offset_top = 200
+	_nav_hints.offset_right = 300
+	_nav_hints.offset_bottom = 220
+	_nav_hints.add_theme_font_size_override("font_size", 13)
+	_nav_hints.add_theme_color_override("font_color", Color(1, 1, 1, 0.35))
+	add_child(_nav_hints)
 
-	# RB hint (right of tabs)
-	var rb_label := Label.new()
-	rb_label.text = "RB"
-	rb_label.add_theme_font_size_override("font_size", 12)
-	rb_label.add_theme_color_override("font_color", TEXT_SECONDARY)
-	rb_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tab_bar.add_child(rb_label)
-
-	# Apply hover/pressed styles to all tabs
-	var tab_hover := StyleBoxFlat.new()
-	tab_hover.bg_color = Color(1, 1, 1, 0.05)
-	tab_hover.set_border_width_all(0)
-	tab_hover.set_corner_radius_all(0)
-	tab_hover.content_margin_left = 22.0
-	tab_hover.content_margin_top = 10.0
-	tab_hover.content_margin_right = 22.0
-	tab_hover.content_margin_bottom = 10.0
-
-	for btn in [_role_tab_btn, _enemies_tab_btn, _lobby_tab_btn]:
-		btn.add_theme_stylebox_override("hover", tab_hover)
-		btn.add_theme_stylebox_override("pressed", _tab_active_style)
-		btn.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
-		btn.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
+	# -- Back hint label (shown only in lobby state) --
+	_back_hint = Label.new()
+	_back_hint.text = "[Esc] Change Loadout"
+	_back_hint.visible = false
+	_back_hint.anchor_left = 0.0
+	_back_hint.anchor_top = 0.0
+	_back_hint.offset_left = 20
+	_back_hint.offset_top = 20
+	_back_hint.add_theme_font_size_override("font_size", 14)
+	_back_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+	add_child(_back_hint)
 
 	_update_character_select_cards()
 
@@ -1008,20 +1095,10 @@ func _build_enemies_panel() -> void:
 	_enemies_panel.name = "EnemiesPanel"
 	_enemies_panel.visible = false
 	_enemies_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_enemies_panel.offset_top = 110
+	_enemies_panel.offset_left = 250
+	_enemies_panel.offset_top = 80
 	_enemies_panel.offset_bottom = -40
 	add_child(_enemies_panel)
-
-	# Frosted blur overlay (same as character select)
-	var overlay_blur := ColorRect.new()
-	overlay_blur.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay_blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var overlay_mat := ShaderMaterial.new()
-	overlay_mat.shader = _glass_shader
-	overlay_mat.set_shader_parameter("tint", Color(0.04, 0.03, 0.08, 0.70))
-	overlay_mat.set_shader_parameter("blur_amount", 4.0)
-	overlay_blur.material = overlay_mat
-	_enemies_panel.add_child(overlay_blur)
 
 	# Scroll container for the card list
 	var scroll := ScrollContainer.new()
@@ -1032,9 +1109,9 @@ func _build_enemies_panel() -> void:
 
 	var margin := MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 80)
+	margin.add_theme_constant_override("margin_left", 30)
 	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_right", 80)
+	margin.add_theme_constant_override("margin_right", 30)
 	margin.add_theme_constant_override("margin_bottom", 30)
 	scroll.add_child(margin)
 
@@ -1227,6 +1304,7 @@ func _confirm_name(player_id: int, display_name: String) -> void:
 # ── Button Handlers ────────────────────────────────────────────────────────────
 
 func _on_host_pressed() -> void:
+	SoundManager.play_ui_click()
 	var error := NetworkManager.host_game()
 	if error != OK:
 		status_label.text = "Failed to host: %s" % error_string(error)
@@ -1260,6 +1338,7 @@ func _on_host_pressed() -> void:
 
 
 func _on_join_pressed() -> void:
+	SoundManager.play_ui_click()
 	var input_text := address_input.text.strip_edges()
 	if input_text.is_empty():
 		status_label.text = "Enter a room code or IP address."
@@ -1291,6 +1370,7 @@ func _on_join_pressed() -> void:
 
 
 func _on_copy_pressed() -> void:
+	SoundManager.play_ui_click()
 	DisplayServer.clipboard_set(_room_code)
 	copy_button.text = "Copied!"
 	await get_tree().create_timer(1.5).timeout
@@ -1299,6 +1379,7 @@ func _on_copy_pressed() -> void:
 
 
 func _on_leave_pressed() -> void:
+	SoundManager.play_ui_click()
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
@@ -1320,6 +1401,8 @@ func _on_leave_pressed() -> void:
 
 
 func _on_start_pressed() -> void:
+	SoundManager.play_ui_click()
+	SoundManager.stop_lobby_music()
 	# Only the host triggers the scene change.
 	if not _is_host:
 		return
@@ -1329,6 +1412,7 @@ func _on_start_pressed() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _change_scene_all_peers(scene_path: String) -> void:
+	SoundManager.stop_lobby_music()
 	get_tree().change_scene_to_file(scene_path)
 
 
@@ -1429,6 +1513,95 @@ func _ensure_ui_joypad_mappings() -> void:
 		ev.axis_value = mapping[2]
 		ev.device = -1
 		InputMap.action_add_event(mapping[0], ev)
+
+
+# ── Title Splash ───────────────────────────────────────────────────────────────
+
+func _build_title_splash() -> void:
+	_splash = Control.new()
+	_splash.name = "TitleSplash"
+	_splash.visible = false
+	_splash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_splash.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_splash)
+
+	# Dark overlay
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0.02, 0.02, 0.05, 0.95)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_splash.add_child(overlay)
+
+	# Center container for title + prompt
+	var center := VBoxContainer.new()
+	center.set_anchors_preset(Control.PRESET_CENTER)
+	center.offset_left = -500
+	center.offset_top = -100
+	center.offset_right = 500
+	center.offset_bottom = 100
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_theme_constant_override("separation", 30)
+	_splash.add_child(center)
+
+	# Game title
+	var title := Label.new()
+	title.text = "SEGFAULT: FATAL EXCEPTION 1"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	center.add_child(title)
+
+	# "Press any button" prompt
+	_splash_prompt = Label.new()
+	_splash_prompt.text = "PRESS ANY BUTTON"
+	_splash_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_splash_prompt.add_theme_font_size_override("font_size", 18)
+	_splash_prompt.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+	center.add_child(_splash_prompt)
+
+
+func _show_splash() -> void:
+	if not _splash:
+		_switch_to_role_tab()
+		return
+	_splash.visible = true
+	# Hide pregame UI behind splash
+	if _char_select:
+		_char_select.visible = false
+	if _enemies_panel:
+		_enemies_panel.visible = false
+	if _menu_container:
+		_menu_container.visible = false
+	if _title_label:
+		_title_label.visible = false
+	if _stage_viewport_container:
+		_stage_viewport_container.visible = false
+	if _nav_hints:
+		_nav_hints.visible = false
+	var hud := get_node_or_null("BottomHUD")
+	if hud:
+		hud.visible = false
+	# Pulse animation on the prompt
+	_start_splash_pulse()
+
+
+func _start_splash_pulse() -> void:
+	if _splash_tween:
+		_splash_tween.kill()
+	_splash_tween = create_tween().set_loops()
+	_splash_tween.tween_property(_splash_prompt, "modulate:a", 0.3, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_splash_tween.tween_property(_splash_prompt, "modulate:a", 1.0, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _dismiss_splash() -> void:
+	SoundManager.play_ui_click()
+	SoundManager.play_lobby_music()
+	if _splash_tween:
+		_splash_tween.kill()
+		_splash_tween = null
+	if _splash:
+		_splash.visible = false
+	_switch_to_role_tab()
 
 
 # ── On-Screen Keyboard ─────────────────────────────────────────────────────────

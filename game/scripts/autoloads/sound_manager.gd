@@ -14,6 +14,11 @@ var _ability_player: AudioStreamPlayer = null
 var _revive_player: AudioStreamPlayer = null
 var _status_player: AudioStreamPlayer = null
 
+# Lobby music + UI click
+var _music_player: AudioStreamPlayer = null
+var _ui_click_player: AudioStreamPlayer = null
+var _music_fade_tween: Tween = null
+
 
 func _ready() -> void:
 	_shoot_player = _create_audio_player("ShootSound")
@@ -25,6 +30,19 @@ func _ready() -> void:
 	_ability_player = _create_audio_player("AbilitySound")
 	_revive_player = _create_audio_player("ReviveSound")
 	_status_player = _create_audio_player("StatusSound")
+
+	# Lobby music
+	_music_player = _create_audio_player("LobbyMusic")
+	_music_player.volume_db = -10.0
+	var music_stream := load("res://assets/audio/lobby_music.mp3")
+	if music_stream:
+		music_stream.loop = true
+		_music_player.stream = music_stream
+
+	# Procedural UI click sound
+	_ui_click_player = _create_audio_player("UIClick")
+	_ui_click_player.volume_db = -6.0
+	_ui_click_player.stream = _generate_click_sound()
 
 	# Connect to Events signals. Each connection is guarded so missing signals
 	# don't crash (future-proofing as signals are added).
@@ -94,3 +112,53 @@ func _on_status_applied(_entity_id: int, _effect_name: String, _duration: float)
 func _play(player: AudioStreamPlayer) -> void:
 	if player and player.stream:
 		player.play()
+
+
+# ── Lobby Music ──────────────────────────────────────────────────────────────
+
+func play_lobby_music() -> void:
+	if _music_player and _music_player.stream and not _music_player.playing:
+		_music_player.volume_db = -10.0
+		_music_player.play()
+
+
+func stop_lobby_music() -> void:
+	if not _music_player or not _music_player.playing:
+		return
+	# Fade out over 1.5 seconds
+	if _music_fade_tween:
+		_music_fade_tween.kill()
+	_music_fade_tween = create_tween()
+	_music_fade_tween.tween_property(_music_player, "volume_db", -40.0, 1.5)
+	_music_fade_tween.tween_callback(_music_player.stop)
+
+
+# ── UI Click ─────────────────────────────────────────────────────────────────
+
+func play_ui_click() -> void:
+	if _ui_click_player and _ui_click_player.stream:
+		_ui_click_player.play()
+
+
+func _generate_click_sound() -> AudioStreamWAV:
+	var sample_rate := 44100
+	var duration := 0.03  # 30ms
+	var frequency := 1200.0
+	var sample_count := int(sample_rate * duration)
+	var data := PackedByteArray()
+	data.resize(sample_count)
+
+	for i in range(sample_count):
+		var t := float(i) / sample_rate
+		var envelope := 1.0 - (t / duration)  # Linear decay
+		envelope *= envelope  # Quadratic for snappier decay
+		var sample := sin(t * frequency * TAU) * envelope
+		# Convert to unsigned 8-bit (0-255, 128 = silence)
+		data[i] = int(clampf(sample * 127.0 + 128.0, 0.0, 255.0))
+
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.stereo = false
+	wav.data = data
+	return wav

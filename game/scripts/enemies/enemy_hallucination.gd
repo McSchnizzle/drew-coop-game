@@ -5,7 +5,7 @@ extends "res://scripts/enemies/enemy_base.gd"
 const HALL_HP: int = 2
 const HALL_CHASE_SPEED: float = 3.5  # 70px / 20
 const HALL_REVEAL_RANGE: float = 4.0  # 80px / 20
-const HALL_CONTACT_DMG: int = 15
+const HALL_CONTACT_DMG: int = 1
 const HALL_DISGUISED_SCALE: float = 0.6
 const HALL_REVEALED_SCALE: float = 1.0
 const HALL_REVEAL_TIME: float = 0.3
@@ -24,6 +24,14 @@ var _last_disguised: bool = true  # tracks synced value for client visual update
 func _ready() -> void:
 	super._ready()
 	_load_glb_model("res://assets/models/ely/ely.fbx", 2.0)  # Ely model — humanoid disguised as friendly
+	_load_external_animations({
+		"Idle": "res://assets/models/ybot/idle.fbx",
+		"Walk": "res://assets/models/ybot/walk.fbx",
+		"Run": "res://assets/models/ybot/run.fbx",
+		"Death": "res://assets/models/ybot/death.fbx",
+		"HitReaction": "res://assets/models/ybot/hit_reaction.fbx",
+		"Attack": "res://assets/models/ybot/attack.fbx",
+	})
 	_attach_robot_helmet()
 	health = HALL_HP
 	speed = 0.0

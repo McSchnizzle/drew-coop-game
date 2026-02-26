@@ -5,7 +5,7 @@ extends "res://scripts/enemies/enemy_base.gd"
 const DL_HP: int = 6
 const DL_SPEED: float = 1.5  # 30px / 20
 const DL_AURA_RADIUS: float = 10.0  # 200px / 20
-const DL_CONTACT_DMG: int = 12
+const DL_CONTACT_DMG: int = 1
 
 const COLOR: Color = Color(0.15, 0.15, 0.6)
 
@@ -13,6 +13,14 @@ const COLOR: Color = Color(0.15, 0.15, 0.6)
 func _ready() -> void:
 	super._ready()
 	_load_glb_model("res://assets/models/deadlock.fbx")
+	_load_external_animations({
+		"Idle": "res://assets/models/ybot/idle.fbx",
+		"Walk": "res://assets/models/ybot/walk.fbx",
+		"Run": "res://assets/models/ybot/run.fbx",
+		"Death": "res://assets/models/ybot/death.fbx",
+		"HitReaction": "res://assets/models/ybot/hit_reaction.fbx",
+		"Attack": "res://assets/models/ybot/attack.fbx",
+	})
 	health = DL_HP
 	speed = DL_SPEED
 	contact_damage = DL_CONTACT_DMG
