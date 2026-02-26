@@ -128,6 +128,7 @@ var VM_POS_HIP := Vector3(0.23, -1.8, -0.36)
 var VM_POS_ADS := Vector3(-0.1, -1.7, -0.25)
 # Per-role ADS offsets (applied on top of VM_POS_ADS)
 const VM_ADS_ROLE_OFFSET := {
+	"striker": Vector3(0.06, 0.06, 0.0),
 	"engineer": Vector3(0.03, -0.04, 0.0),
 }
 var _vm_debug_label: Label = null
